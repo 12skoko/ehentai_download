@@ -112,7 +112,7 @@ def download_file(url, filename, retries=3, min_speed=30, check_interval=5):
     attempt = 0
     while attempt < retries:
         try:
-            response = requests.get(url, headers=config.header, stream=True)
+            response = requests.get(url, headers=config.header, stream=True, proxies=config.proxies1)
             response.raise_for_status()
             total_size = int(response.headers.get('content-length', 0))
             block_size = 1024
