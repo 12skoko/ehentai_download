@@ -99,7 +99,7 @@ def upload(manga, directorypath):
         with open(filepath, 'rb') as file_obj:
             encoder = MultipartEncoder(
                 fields={'file': (filepath, file_obj, 'application/x-zip-compressed'), 'catid': ''})
-            response = requests.post(config.raragi_url+'/upload', data=encoder, cookies=raragiCookie,
+            response = requests.post(config.raragi_url + '/upload', data=encoder, cookies=raragiCookie,
                                      headers={'Content-Type': encoder.content_type})
 
     except Exception as e:
@@ -462,7 +462,7 @@ def delete():
         res = c.fetchall()
         if res:
             file_path = os.path.join(config.torrent_delete_path, item)
-            shutil.rmtree(file_path)
+            shutil.rmtree(file_path, ignore_errors=True)
             time.sleep(0.2)
             print('deleted ' + str(i) + '/' + length + ':' + file_path)
             # remote_file_path = os.path.join(config.torrent_delete_path, item)
@@ -497,7 +497,7 @@ def delete():
         res = c.fetchall()
         if res:
             file_path = os.path.join(config.hah_download_path, item)
-            shutil.rmtree(file_path)
+            shutil.rmtree(file_path, ignore_errors=True)
             time.sleep(0.2)
             print('deleted ' + str(i) + '/' + length + ':' + file_path)
             # remote_file_path = os.path.join(config.delhahpath, "'" + item + "'")
@@ -559,7 +559,7 @@ def delete():
             i += 1
 
 
-req = requests.post(url=config.raragi_url+"/login", data={'password': config.raragi_password})
+req = requests.post(url=config.raragi_url + "/login", data={'password': config.raragi_password})
 cook = req.headers['Set-Cookie'].split("=")
 raragiCookie = {cook[0]: cook[1]}
 
