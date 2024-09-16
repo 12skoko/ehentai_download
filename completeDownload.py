@@ -138,7 +138,7 @@ def upload(manga, directorypath):
     tagstr = tagstr + ',' + info[18] + ',' + info[17]
 
     data = {
-        'title': manga[1],
+        'title': info[1],
         'tags': tagstr}
 
     update_url = config.raragi_url + '/api/archives/%s/metadata' % id
