@@ -165,7 +165,7 @@ tagTrans = EhTagTranslation()
 conn = config.conn
 c = conn.cursor()
 
-sqlstr = 'SELECT * FROM manga WHERE autostate=6 ORDER BY timestamp DESC;'
+sqlstr = 'SELECT * FROM manga WHERE state=15 ORDER BY timestamp DESC;'
 c.execute(sqlstr)
 mangaList = c.fetchall()
 lense = len(mangaList)
@@ -255,7 +255,7 @@ while i < lense:
             raise 'hah post error'
 
         timestamp = int(time.time())
-        sqlstr = 'UPDATE manga SET autostate = 7 ,remark="%s" WHERE id = "%s"' % (timestamp, manga[0])
+        sqlstr = 'UPDATE manga SET state = 9 ,remark="%s" WHERE id = "%s"' % (timestamp, manga[0])
         c.execute(sqlstr)
         conn.commit()
 
@@ -276,19 +276,9 @@ while i < lense:
         print(downlink)
         print(zipname)
         download_file(downlink, os.path.join(config.direct_download_path, zipname))
-        sqlstr = 'UPDATE manga SET autostate = 11 ,filename="%s" WHERE id = "%s"' % (zipname, manga[0])
+        sqlstr = 'UPDATE manga SET state = 11 ,filename="%s" WHERE id = "%s"' % (zipname, manga[0])
         c.execute(sqlstr)
         conn.commit()
-
-    if info[13] != 'None':
-        sqlstr = f'SELECT * FROM manga WHERE id LIKE "{info[13]}/%";'
-        c.execute(sqlstr)
-        res = c.fetchall()
-        if res:
-            sqlstr = 'UPDATE manga SET state = -1 WHERE id = "%s"' % (res[0][0])
-            print(sqlstr)
-            c.execute(sqlstr)
-            conn.commit()
 
     today = datetime.date.today()
     year, week, _ = today.isocalendar()
