@@ -93,7 +93,7 @@ def upload(manga, directorypath):
     info = c.fetchall()[0]
     # print(info)
     filepath = os.path.join(directorypath, manga[15])
-    filepath = os.path.normpath(filepath).replace('\\', '/').replace(" ", "\ ")
+    filepath = os.path.normpath(filepath).replace('\\', '/')
     print(filepath)
     try:
         with open(filepath, 'rb') as file_obj:
