@@ -173,11 +173,12 @@ def download_aria2(url, file_name):
     }
     response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
     if response.status_code == 200:
-        print('下载任务添加成功:', file_name, response.json())
+        print('下载任务添加成功:', response.json())
         taskid = response.json()['result']
     else:
         print('添加任务失败:', response.status_code, response.text)
         raise '添加任务失败'
+    time.sleep(10)
 
     json_rpc_data = {
         'jsonrpc': '2.0',
@@ -201,7 +202,7 @@ def download_aria2(url, file_name):
                 print(download_speed_kbps, 'kbps')
                 raise '下载速度过慢'
         elif status == 'complete':
-            print('下载完成:', file_name)
+            print('下载完成')
             break
         else:
             print('下载状态：', status)
