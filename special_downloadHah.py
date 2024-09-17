@@ -190,6 +190,7 @@ def download_aria2(url, file_name):
         ]
     }
     i_time = 0
+    low_speed_time = 0
     while i_time < 720:
         time.sleep(5)
         response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
@@ -199,8 +200,10 @@ def download_aria2(url, file_name):
             download_speed = task_info.get('downloadSpeed', '0')
             download_speed_kbps = int(download_speed) / 1024
             if download_speed_kbps < 50:
-                print(download_speed_kbps, 'kbps')
-                raise '下载速度过慢'
+                low_speed_time += 1
+                if low_speed_time > 12:
+                    print(download_speed_kbps, 'kbps')
+                    raise '下载速度过慢'
         elif status == 'complete':
             print('下载完成')
             break
@@ -292,7 +295,7 @@ while i < lense:
     else:
         hah_cost = int(hah_cost[:-3].replace(',', ''))
 
-    downflag = 0
+    downflag = 1
     if direct_cost == 0 or direct_cost < hah_cost or hah_cost > 8000 or hah_cost < 400:
         downflag = 1
 
