@@ -500,7 +500,7 @@ def delete():
         if res:
             json_rpc_data = {
                 'jsonrpc': '2.0',
-                'method': 'aria2.remove',
+                'method': 'aria2.removeDownloadResult',
                 'id': 'qwer',
                 'params': [
                     f'token:{config.aria2_rpc_token}',
