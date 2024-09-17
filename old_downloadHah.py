@@ -158,6 +158,27 @@ def download_file(url, filename, retries=3, min_speed=30, check_interval=5):
                 raise "Max retries reached. Raising error to terminate program."  # 超过重试次数后抛出异常终止程序
 
 
+def download_aria2(url, file_name):
+    json_rpc_data = {
+        'jsonrpc': '2.0',
+        'method': 'aria2.addUri',
+        'id': 'qwer',
+        'params': [
+            f'token:{config.aria2_rpc_token}',  # 如果未启用密钥，可以删除这一行
+            [url],
+            {
+                'out': file_name  # 指定文件名
+            }
+        ]
+    }
+    response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
+    if response.status_code == 200:
+        print('下载任务添加成功:', file_name, response.json())
+    else:
+        print('添加任务失败:', response.status_code, response.text)
+        raise '添加任务失败'
+
+
 se = requests.session()
 
 tagTrans = EhTagTranslation()
@@ -275,7 +296,7 @@ while i < lense:
             zipname = '[' + manga[0].split('/')[0] + ']' + re.sub(r'[\\/*?:"<>|]', '_', name) + '.zip'
         print(downlink)
         print(zipname)
-        download_file(downlink, os.path.join(config.direct_download_path, zipname))
+        download_aria2(downlink, zipname)
         sqlstr = 'UPDATE manga SET state = 11 ,filename="%s" WHERE id = "%s"' % (zipname, manga[0])
         c.execute(sqlstr)
         conn.commit()
