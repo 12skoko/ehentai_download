@@ -190,8 +190,8 @@ def download_aria2(url, file_name):
         ]
     }
     i_time = 0
-    while i_time < 360:
-        time.sleep(10)
+    while i_time < 720:
+        time.sleep(5)
         response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
         task_info = response.json().get('result', {})
         status = task_info.get('status')
