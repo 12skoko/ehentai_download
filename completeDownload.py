@@ -209,13 +209,13 @@ def addFatelAndDeleteOutdate():
     c.execute(sqlstr)
     res = c.fetchall()
     for i in res:
-        searchurl = config.api_url + 'search?filter=' + i[0]
+        searchurl = config.raragi_url + '/api/search?filter=' + i[0]
         res1 = eval(requests.get(searchurl, headers=config.auth).text)
         if res1["recordsFiltered"] == 1:
             print('deleted_outdate:', i[0], i[1])
             id = res1['data'][0]['arcid']
             # print(id)
-            deleteurl = config.api_url + 'archives/' + id
+            deleteurl = config.raragi_url + '/apiarchives/' + id
             # print(deleteurl)
             res2 = requests.delete(deleteurl, headers=config.auth)
             # print(res2.text)
