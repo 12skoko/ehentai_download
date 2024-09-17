@@ -223,6 +223,7 @@ def download_aria2(url, file_name, checkout=0):
                         ]
                     }
                     response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
+                    time.sleep(10)
                     download_aria2(url, file_name, checkout=1)
         else:
             print('下载状态：', status)
