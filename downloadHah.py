@@ -158,7 +158,7 @@ def parse_file_size(size_str):
 #                 raise "Max retries reached. Raising error to terminate program."  # 超过重试次数后抛出异常终止程序
 
 
-def download_aria2(url, file_name):
+def download_aria2(url, file_name, checkout=0):
     json_rpc_data = {
         'jsonrpc': '2.0',
         'method': 'aria2.addUri',
@@ -205,8 +205,25 @@ def download_aria2(url, file_name):
                     print(download_speed_kbps, 'kbps')
                     raise '下载速度过慢'
         elif status == 'complete':
-            print('下载完成')
-            break
+            total_length = int(task_info.get('totalLength', 0))
+            if total_length > 10240:
+                print('下载完成')
+                break
+            else:
+                if checkout > 0:
+                    raise '下载失败1kb'
+                else:
+                    json_rpc_data = {
+                        'jsonrpc': '2.0',
+                        'method': 'aria2.removeDownloadResult',
+                        'id': 'qwer',
+                        'params': [
+                            f'token:{config.aria2_rpc_token}',
+                            taskid
+                        ]
+                    }
+                    response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
+                    download_aria2(url, file_name, checkout=1)
         else:
             print('下载状态：', status)
             raise '未知下载状态'
@@ -220,7 +237,7 @@ tagTrans = EhTagTranslation()
 conn = config.conn
 c = conn.cursor()
 
-sqlstr = 'SELECT * FROM manga WHERE autostate=6 ORDER BY timestamp DESC;'
+sqlstr = 'SELECT * FROM manga WHERE autostate = 6 ORDER BY timestamp DESC;'
 c.execute(sqlstr)
 mangaList = c.fetchall()
 lense = len(mangaList)
