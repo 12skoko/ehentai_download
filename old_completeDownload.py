@@ -449,7 +449,7 @@ def delete():
         if res:
             json_rpc_data = {
                 'jsonrpc': '2.0',
-                'method': 'aria2.remove',
+                'method': 'aria2.removeDownloadResult',
                 'id': 'qwer',
                 'params': [
                     f'token:{config.aria2_rpc_token}',
@@ -460,7 +460,8 @@ def delete():
             if response.status_code == 200 and 'result' in response.json():
                 print('deleted_aria2 ' + str(i) + '/' + length + ':' + file_name)
             else:
-                print(f"删除任务失败: {response.status_code} {response.text}" + file_name)
+                print(json_rpc_data)
+                print(f"删除任务失败: {response.status_code} {response.text}\n" + file_name)
                 raise 'aria2删除任务失败'
             time.sleep(0.2)
         i += 1
