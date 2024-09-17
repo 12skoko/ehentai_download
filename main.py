@@ -35,12 +35,15 @@ def run_py(py_name, mark_name):
             message = context + '\n\n\n' + e.stderr
             sendEmail(config.sender_email, config.email_auth, config.rec_email, subject, message)
             scheduler.shutdown()
+            exit(666)
 
 
 start_date = datetime.now() + timedelta(seconds=1)
 scheduler = BlockingScheduler()
+
 scheduler.add_job(run_py, args=("collect.py", "collect"), trigger='interval', hours=6, seconds=7, start_date=start_date)
-scheduler.add_job(run_py, args=("downloadTorrent.py", "downloadTorrent"), trigger='interval', hours=6, seconds=7, start_date=start_date)
-scheduler.add_job(run_py, args=("downloadHah.py", "downloadHah"), trigger='interval', hours=6, seconds=7, start_date=start_date)
-scheduler.add_job(run_py, args=("completeDownload.py", "completeDownload"), trigger='interval', hours=6, seconds=7, start_date=start_date)
+scheduler.add_job(run_py, args=("downloadTorrent.py", "downloadTorrent"), trigger='interval', hours=2, seconds=3, start_date=start_date)
+scheduler.add_job(run_py, args=("downloadHah.py", "downloadHah"), trigger='interval', hours=2, seconds=2, start_date=start_date)
+scheduler.add_job(run_py, args=("completeDownload.py", "completeDownload"), trigger='interval', hours=1, seconds=1, start_date=start_date)
+
 scheduler.start()

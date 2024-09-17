@@ -188,8 +188,8 @@ artist=[
     # 'azuma yuki',
     # 'okada kou'
     # 'muk',
-    'fummy',
-    'shouji ayumu'
+    # 'fummy',
+    # 'shouji ayumu'
 
 ]
 

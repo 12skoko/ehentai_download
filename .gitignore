@@ -4,5 +4,5 @@ tempfile/
 .idea/
 test/
 config.py
-old_config.py
+old/old_config.py
 old/

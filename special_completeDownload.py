@@ -250,7 +250,7 @@ def compressTorrent():
             create_zip_file(path, zip_file_path)
         except:
             print('compress error:', manga[0])
-            sqlstr = f'UPDATE manga SET state=-4,remark="compress torrent error" WHERE id="{manga[0]}";'
+            sqlstr = f'UPDATE manga SET state = -4,remark="compress torrent error" WHERE id="{manga[0]}";'
             c.execute(sqlstr)
             conn.commit()
             i += 1
@@ -283,7 +283,7 @@ def compressHah():
         except Exception as e:
             print(zip_file_name)
             print('compress error:', manga[0], '\n', e)
-            sqlstr = f'UPDATE manga SET state=-4,remark="compress hah error" WHERE id="{manga[0]}";'
+            sqlstr = f'UPDATE manga SET state = -4,remark="compress hah error" WHERE id="{manga[0]}";'
             c.execute(sqlstr)
             conn.commit()
             i += 1
@@ -393,7 +393,7 @@ def uploadall():
     i = 1
     for manga in mangaList:
         print('direct:' + str(i) + '/' + length)
-        upload(manga, config.direct_download_path)
+        upload(manga, config.aria2_download_path)
         i += 1
         time.sleep(2)
 
@@ -403,11 +403,74 @@ def uploadall():
 def delete():
     print('-------------------delete-------------------')
 
+    # 删除qbit内种子
+    i = 1
+    torrents = qbt_client.torrents_info()
+    length = str(len(torrents))
+    for torrent in torrents:
+        if torrent.category == 'ehentai':
+            if 'fatel' in torrent.tags:
+                qbt_client.torrents_delete(delete_files=True, torrent_hashes=torrent.hash)
+                time.sleep(0.2)
+                print('deleted_fatel_torrent:' + str(i) + '/' + length + ':' + torrent.name)
+                i += 1
+                continue
+            sqlstr = f'SELECT * FROM manga WHERE state = 0 AND torrenthash="{torrent.hash}";'
+            c.execute(sqlstr)
+            res = c.fetchall()
+            if res:
+                qbt_client.torrents_delete(torrent_hashes=torrent.hash)
+                time.sleep(0.2)
+                print('deleted_torrent:' + str(i) + '/' + length + ':' + torrent.name)
+            i += 1
+
+    # 删除aria2下载记录
+    json_rpc_data = {
+        'jsonrpc': '2.0',
+        'method': 'aria2.tellStopped',
+        'id': 'qwer',
+        'params': [
+            f'token:{config.aria2_rpc_token}',
+            0,  # 偏移量，表示从第一个任务开始查询
+            1000  # 最大返回任务数，可以根据需要调整
+        ]
+    }
+    response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
+    completed_tasks = response.json().get('result', [])
+    i = 1
+    length = str(len(completed_tasks))
+    for task in completed_tasks:
+        taskid = task['gid']
+        file_name = os.path.basename(task['files'][0]['path'])
+        id = re.search('\[(\d+)\].+', file_name)[1]
+        sqlstr = f'SELECT * FROM manga WHERE state = 0 AND id LIKE "{id}%";'
+        c.execute(sqlstr)
+        res = c.fetchall()
+        if res:
+            json_rpc_data = {
+                'jsonrpc': '2.0',
+                'method': 'aria2.remove',
+                'id': 'qwer',
+                'params': [
+                    f'token:{config.aria2_rpc_token}',
+                    taskid
+                ]
+            }
+            response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
+            if response.status_code == 200 and 'result' in response.json():
+                print('deleted_aria2 ' + str(i) + '/' + length + ':' + file_name)
+            else:
+                print(f"删除任务失败: {response.status_code} {response.text}" + file_name)
+                raise 'aria2删除任务失败'
+            time.sleep(0.2)
+        i += 1
+
+    # 删除种子下载文件
     contents = os.listdir(config.torrent_download_path)
     i = 1
     length = str(len(contents))
     for item in contents:
-        sqlstr = f'SELECT * FROM manga WHERE (state=0 OR state=6) AND id LIKE "{item}/%";'
+        sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = 6) AND id LIKE "{item}/%";'
         c.execute(sqlstr)
         res = c.fetchall()
         if res:
@@ -421,12 +484,13 @@ def delete():
             # print('deleted ' + str(i) + '/' + length + ':' + remote_file_path)
         i += 1
 
+    # 删除种子压缩文件
     contents = os.listdir(config.torrent_zip_path)
     i = 1
     length = str(len(contents))
     for item in contents:
         id = re.search('\[(\d+)\].+', item)[1]
-        sqlstr = f'SELECT * FROM manga WHERE state=0 AND id LIKE "{id}%";'
+        sqlstr = f'SELECT * FROM manga WHERE state = 0 AND id LIKE "{id}%";'
         c.execute(sqlstr)
         res = c.fetchall()
         if res:
@@ -437,12 +501,13 @@ def delete():
             print('deleted ' + str(i) + '/' + length + ':' + file_path)
         i += 1
 
+    # 删除hah下载文件
     contents = os.listdir(config.hah_download_path)
     i = 1
     length = str(len(contents))
     for item in contents:
         id = re.search('.+\[(\d+)\]', item)[1]
-        sqlstr = f'SELECT * FROM manga WHERE state=0 AND id LIKE "{id}%";'
+        sqlstr = f'SELECT * FROM manga WHERE state = 0 AND id LIKE "{id}%";'
         c.execute(sqlstr)
         res = c.fetchall()
         if res:
@@ -456,12 +521,13 @@ def delete():
             # print('deleted ' + str(i) + '/' + length + ':' + remote_file_path)
         i += 1
 
+    # 删除hah压缩文件
     contents = os.listdir(config.hah_zip_path)
     i = 1
     length = str(len(contents))
     for item in contents:
         id = re.search('\[(\d+)\].+', item)[1]
-        sqlstr = f'SELECT * FROM manga WHERE state=0 AND id LIKE "{id}%";'
+        sqlstr = f'SELECT * FROM manga WHERE state = 0 AND id LIKE "{id}%";'
         c.execute(sqlstr)
         res = c.fetchall()
         if res:
@@ -472,12 +538,13 @@ def delete():
             print('deleted ' + str(i) + '/' + length + ':' + file_path)
         i += 1
 
+    # 删除直接下载文件
     contents = os.listdir(config.direct_download_path)
     i = 1
     length = str(len(contents))
     for item in contents:
         id = re.search('\[(\d+)\].+', item)[1]
-        sqlstr = f'SELECT * FROM manga WHERE state=0 AND id LIKE "{id}%";'
+        sqlstr = f'SELECT * FROM manga WHERE state = 0 AND id LIKE "{id}%";'
         c.execute(sqlstr)
         res = c.fetchall()
         if res:
@@ -488,25 +555,22 @@ def delete():
             print('deleted ' + str(i) + '/' + length + ':' + file_path)
         i += 1
 
+    # 删除aria2下载文件
+    contents = os.listdir(config.aria2_download_path)
     i = 1
-    torrents = qbt_client.torrents_info()
-    length = str(len(torrents))
-    for torrent in torrents:
-        if torrent.category == 'specialehentai':
-            if 'fatel' in torrent.tags:
-                qbt_client.torrents_delete(delete_files=True, torrent_hashes=torrent.hash)
-                time.sleep(0.2)
-                print('deleted_fatel_torrent:' + str(i) + '/' + length + ':' + torrent.name)
-                i += 1
-                continue
-            sqlstr = f'SELECT * FROM manga WHERE state=0 AND torrenthash="{torrent.hash}";'
-            c.execute(sqlstr)
-            res = c.fetchall()
-            if res:
-                qbt_client.torrents_delete(torrent_hashes=torrent.hash)
-                time.sleep(0.2)
-                print('deleted_torrent:' + str(i) + '/' + length + ':' + torrent.name)
-            i += 1
+    length = str(len(contents))
+    for item in contents:
+        id = re.search('\[(\d+)\].+', item)[1]
+        sqlstr = f'SELECT * FROM manga WHERE state = 0 AND id LIKE "{id}%";'
+        c.execute(sqlstr)
+        res = c.fetchall()
+        if res:
+            # print(item)
+            file_path = os.path.join(config.aria2_delete_path, item)
+            os.remove(file_path)
+            time.sleep(0.2)
+            print('deleted ' + str(i) + '/' + length + ':' + file_path)
+        i += 1
 
 
 req = requests.post(url=config.raragi_url + "/login", data={'password': config.raragi_password})

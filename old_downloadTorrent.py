@@ -14,7 +14,7 @@ c = conn.cursor()
 
 se = requests.session()
 
-sqlstr = 'SELECT * FROM manga WHERE state=2 ORDER BY timestamp DESC;'
+sqlstr = 'SELECT * FROM manga WHERE state = 2 ORDER BY timestamp DESC;'
 
 c.execute(sqlstr)
 mangaList = c.fetchall()

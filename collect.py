@@ -173,7 +173,7 @@ def collect(baseurl, end, mark):
 
 
 def screenall():
-    sqlstr = 'SELECT * FROM manga WHERE autostate=1;'
+    sqlstr = 'SELECT * FROM manga WHERE autostate = 1;'
     c.execute(sqlstr)
     undetermined_all_book = c.fetchall()
 
