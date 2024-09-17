@@ -188,7 +188,8 @@ def download_aria2(url, file_name):
             taskid
         ]
     }
-    while i_time < 3600:
+    i_time = 0
+    while i_time < 360:
         time.sleep(10)
         response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
         task_info = response.json().get('result', {})
@@ -205,6 +206,7 @@ def download_aria2(url, file_name):
         else:
             print('下载状态：', status)
             raise '未知下载状态'
+        i_time += 0
 
 
 se = requests.session()
@@ -381,5 +383,6 @@ while i < lense:
                     c.execute(sqlstr)
                     conn.commit()
                     break
+                i_time += 1
 
 print('done')
