@@ -213,6 +213,9 @@ def download_aria2(url, file_name, checkout=0):
                 if checkout > 0:
                     raise '下载失败1kb'
                 else:
+                    import winsound
+                    winsound.Beep(1000, 5000)
+                    input()
                     json_rpc_data = {
                         'jsonrpc': '2.0',
                         'method': 'aria2.removeDownloadResult',
