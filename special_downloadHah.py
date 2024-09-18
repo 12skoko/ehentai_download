@@ -222,7 +222,9 @@ def download_aria2(url, file_name, checkout=0):
                             taskid
                         ]
                     }
-                    response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
+                    requests.post(config.aria2_rpc_url, json=json_rpc_data)
+                    time.sleep(1)
+                    requests.post(config.aria2_rpc_url, json=json_rpc_data)
                     time.sleep(10)
                     download_aria2(url, file_name, checkout=1)
         else:
