@@ -318,9 +318,9 @@ while i < lense:
     else:
         hah_cost = int(hah_cost[:-3].replace(',', ''))
 
-    downflag = 1
+    downflag = 0
     if direct_cost == 0 or direct_cost < hah_cost or hah_cost > 8000 or hah_cost < 400:
-        downflag = 1
+        downflag = 0
 
     postlink = info[12].replace('--', '-')
     if downflag == 0:
