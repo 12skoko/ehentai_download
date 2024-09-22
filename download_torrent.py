@@ -12,54 +12,59 @@ class Gen_sqlstr():
     def __init__(self, run_mode):
         self.run_mode = run_mode
 
-    def choose_download_torrent(self):
-        sqlstr = ""
+    def select_download_torrent(self):
         if self.run_mode == "main":
             sqlstr = 'SELECT * FROM manga WHERE autostate = 2 ORDER BY timestamp DESC;'
         elif self.run_mode == "old":
             sqlstr = 'SELECT * FROM manga WHERE state = 2 ORDER BY timestamp DESC;'
         elif self.run_mode == "special":
             sqlstr = 'SELECT * FROM manga WHERE state = 13 ORDER BY timestamp DESC;'
+        else:
+            raise "unkown run_mode"
         return sqlstr
 
     def no_seeds(self, id):
-        sqlstr = ""
         if self.run_mode == "main":
             sqlstr = 'UPDATE manga SET autostate = 6 WHERE id = "%s"' % id
         elif self.run_mode == "old":
             sqlstr = 'UPDATE manga SET state = 6 WHERE id = "%s"' % id
         elif self.run_mode == "special":
             sqlstr = 'UPDATE manga SET state = 15 WHERE id = "%s"' % id
+        else:
+            raise "unkown run_mode"
         return sqlstr
 
     def rollback(self, id):
-        sqlstr = ""
         if self.run_mode == "main":
             sqlstr = 'UPDATE manga SET autostate = 2 WHERE autostate = 6 AND id = "%s"' % id
         elif self.run_mode == "old":
             sqlstr = 'UPDATE manga SET state = 2 WHERE state = 6 AND id = "%s"' % id
         elif self.run_mode == "special":
             sqlstr = 'UPDATE manga SET state = 13 WHERE state = 15 AND id = "%s"' % id
+        else:
+            raise "unkown run_mode"
         return sqlstr
 
     def add_torrent_error(self, id):
-        sqlstr = ""
         if self.run_mode == "main":
             sqlstr = 'UPDATE manga SET autostate = -3 WHERE id = "%s"' % id
         elif self.run_mode == "old":
             sqlstr = 'UPDATE manga SET state = -2 WHERE id = "%s"' % id
         elif self.run_mode == "special":
             sqlstr = 'UPDATE manga SET state = -2 WHERE id = "%s"' % id
+        else:
+            raise "unkown run_mode"
         return sqlstr
 
     def add_torrent_success(self, filename, torrenthash, id):
-        sqlstr = ""
         if self.run_mode == "main":
             sqlstr = 'UPDATE manga SET autostate = 4 ,filename = "%s" ,torrenthash = "%s" WHERE id = "%s"' % (filename, torrenthash, id)
         elif self.run_mode == "old":
             sqlstr = 'UPDATE manga SET state = 5 ,filename = "%s" ,torrenthash = "%s" WHERE id = "%s"' % (filename, torrenthash, id)
         elif self.run_mode == "special":
             sqlstr = 'UPDATE manga SET state = 14 ,filename = "%s" ,torrenthash = "%s" WHERE id = "%s"' % (filename, torrenthash, id)
+        else:
+            raise "unkown run_mode"
         return sqlstr
 
 
@@ -72,7 +77,7 @@ def download_torrent(run_mode):
 
     se = requests.session()
 
-    sqlstr = gen_sqlstr.choose_download_torrent()
+    sqlstr = gen_sqlstr.select_download_torrent()
 
     c.execute(sqlstr)
     mangaList = c.fetchall()

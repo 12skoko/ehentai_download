@@ -99,63 +99,63 @@ def parse_file_size(size_str):
     return size * units[unit]
 
 
-# def download_file(url, filename, retries=3, min_speed=30, check_interval=5):
-#     """
-#     下载文件并监控下载速度，支持错误和速度低于阈值时的重试机制。
-#
-#     :param url: 下载链接
-#     :param filename: 文件保存路径
-#     :param retries: 最大重试次数
-#     :param min_speed: 速度阈值 (kB/s)
-#     :param check_interval: 检查速度的间隔时间 (秒)
-#     """
-#     attempt = 0
-#     while attempt < retries:
-#         try:
-#             response = requests.get(url, headers=config.header, stream=True, proxies=config.proxies1)
-#             response.raise_for_status()
-#             total_size = int(response.headers.get('content-length', 0))
-#             block_size = 1024
-#
-#             progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True)
-#             start_time = time.time()
-#             downloaded_size = 0
-#
-#             with open(filename, 'wb') as file:
-#                 for data in response.iter_content(block_size):
-#                     file.write(data)
-#                     progress_bar.update(len(data))
-#                     downloaded_size += len(data)
-#
-#                     # 检查下载速度
-#                     elapsed_time = time.time() - start_time
-#                     if elapsed_time >= check_interval:
-#                         speed = (downloaded_size / 1024) / elapsed_time  # kB/s
-#                         if speed < min_speed:
-#                             raise Exception(f"Download speed too low: {speed:.2f} kB/s")
-#                         start_time = time.time()  # 重置计时
-#                         downloaded_size = 0
-#
-#             progress_bar.close()
-#
-#             if total_size != 0 and progress_bar.n != total_size:
-#                 raise Exception("ERROR: download error - file size mismatch")
-#
-#             print("Download completed successfully.")
-#             return  # 成功下载后退出函数
-#
-#         except (ConnectionError, Exception) as e:
-#             attempt += 1
-#             try:
-#                 progress_bar.close()  # 确保进度条关闭
-#             except:
-#                 pass
-#             print(f"Download attempt {attempt}/{retries} failed: {e}")
-#             if attempt < retries:
-#                 print("Retrying...")
-#                 time.sleep(200)  # 等待一段时间后重试
-#             else:
-#                 raise "Max retries reached. Raising error to terminate program."  # 超过重试次数后抛出异常终止程序
+def download_file(url, filename, retries=3, min_speed=30, check_interval=5):
+    """
+    下载文件并监控下载速度，支持错误和速度低于阈值时的重试机制。
+
+    :param url: 下载链接
+    :param filename: 文件保存路径
+    :param retries: 最大重试次数
+    :param min_speed: 速度阈值 (kB/s)
+    :param check_interval: 检查速度的间隔时间 (秒)
+    """
+    attempt = 0
+    while attempt < retries:
+        try:
+            response = requests.get(url, headers=config.header, stream=True, proxies=config.proxies1)
+            response.raise_for_status()
+            total_size = int(response.headers.get('content-length', 0))
+            block_size = 1024
+
+            progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True)
+            start_time = time.time()
+            downloaded_size = 0
+
+            with open(filename, 'wb') as file:
+                for data in response.iter_content(block_size):
+                    file.write(data)
+                    progress_bar.update(len(data))
+                    downloaded_size += len(data)
+
+                    # 检查下载速度
+                    elapsed_time = time.time() - start_time
+                    if elapsed_time >= check_interval:
+                        speed = (downloaded_size / 1024) / elapsed_time  # kB/s
+                        if speed < min_speed:
+                            raise Exception(f"Download speed too low: {speed:.2f} kB/s")
+                        start_time = time.time()  # 重置计时
+                        downloaded_size = 0
+
+            progress_bar.close()
+
+            if total_size != 0 and progress_bar.n != total_size:
+                raise Exception("ERROR: download error - file size mismatch")
+
+            print("Download completed successfully.")
+            return  # 成功下载后退出函数
+
+        except (ConnectionError, Exception) as e:
+            attempt += 1
+            try:
+                progress_bar.close()  # 确保进度条关闭
+            except:
+                pass
+            print(f"Download attempt {attempt}/{retries} failed: {e}")
+            if attempt < retries:
+                print("Retrying...")
+                time.sleep(200)  # 等待一段时间后重试
+            else:
+                raise "Max retries reached. Raising error to terminate program."  # 超过重试次数后抛出异常终止程序
 
 
 def download_aria2(url, file_name, checkout=0):
@@ -213,6 +213,9 @@ def download_aria2(url, file_name, checkout=0):
                 if checkout > 0:
                     raise '下载失败1kb'
                 else:
+                    import winsound
+                    winsound.Beep(1000, 5000)
+                    input()
                     json_rpc_data = {
                         'jsonrpc': '2.0',
                         'method': 'aria2.removeDownloadResult',
@@ -240,7 +243,7 @@ tagTrans = EhTagTranslation()
 conn = config.conn
 c = conn.cursor()
 
-sqlstr = 'SELECT * FROM manga WHERE state = 6 ORDER BY timestamp DESC;'
+sqlstr = 'SELECT * FROM manga WHERE state = 15 ORDER BY timestamp DESC;'
 c.execute(sqlstr)
 mangaList = c.fetchall()
 lense = len(mangaList)
