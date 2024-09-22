@@ -322,7 +322,7 @@ def download_hah(run_mode):
         id = manga[0]
         name = html.unescape(info[0]).replace('"', '""')
         realname = getRealname(name)
-        filename = manga[15].replace('"', '""')
+        # filename = manga[15].replace('"', '""')
         updatetime = time.time()
         tag_tran = tagTrans.getTrans(info[11]).replace('"', '""')
 
