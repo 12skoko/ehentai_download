@@ -150,7 +150,7 @@ def parse_file_size(size_str):
     return size * units[unit]
 
 
-def download_file(url, filename, retries=3, min_speed=30, check_interval=5):
+def download_file(url, filename, retries=3, min_speed=0, check_interval=5):
     """
     下载文件并监控下载速度，支持错误和速度低于阈值时的重试机制。
 
