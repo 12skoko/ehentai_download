@@ -708,9 +708,9 @@ def uploadall(run_mode):
     for manga in mangaList:
         print('direct:' + str(i) + '/' + length)
         if run_mode == "main":
-            main_upload(manga, config.aria2_download_path)
+            main_upload(manga, config.direct_download_path)
         else:
-            old_upload(manga, config.aria2_download_path)
+            old_upload(manga, config.direct_download_path)
         i += 1
         time.sleep(2)
 
