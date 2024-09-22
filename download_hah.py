@@ -261,7 +261,7 @@ def download_aria2(url, file_name, checkout=0):
                 print('下载完成')
                 break
             else:
-                if checkout > 0:
+                if checkout > 5:
                     raise '下载失败1kb'
                 else:
                     json_rpc_data = {
@@ -277,7 +277,8 @@ def download_aria2(url, file_name, checkout=0):
                     time.sleep(5)
                     requests.post(config.aria2_rpc_url, json=json_rpc_data)
                     time.sleep(5)
-                    download_aria2(url, file_name, checkout=1)
+                    checkout += 1
+                    download_aria2(url, file_name, checkout=checkout)
         else:
             print('下载状态：', status)
             raise '未知下载状态'

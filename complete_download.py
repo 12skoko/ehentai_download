@@ -119,13 +119,13 @@ class Gen_sqlstr():
             raise "unkown run_mode"
         return sqlstr
 
-    def compress_hah_error(self, id):
+    def compress_hah_error(self, remark, id):
         if self.run_mode == "main":
-            sqlstr = 'UPDATE manga SET autostate = -4,remark="compress hah error" WHERE id="%s";' % id
+            sqlstr = 'UPDATE manga SET autostate = -4,remark="compress torrent error|%s" WHERE id="%s";' % (remark, id)
         elif self.run_mode == "old":
-            sqlstr = 'UPDATE manga SET state = -4,remark="compress hah error" WHERE id="%s";' % id
+            sqlstr = 'UPDATE manga SET state = -4,remark="compress torrent error|%s" WHERE id="%s";' % (remark, id)
         elif self.run_mode == "special":
-            sqlstr = 'UPDATE manga SET state = -4,remark="compress hah error" WHERE id="%s";' % id
+            sqlstr = 'UPDATE manga SET state = -4,remark="compress torrent error|%s" WHERE id="%s";' % (remark, id)
         else:
             raise "unkown run_mode"
         return sqlstr
@@ -557,7 +557,7 @@ def compressTorrent():
 
 def compressHah():
     print('-------------------compressHah-------------------')
-    sqlstr = gen_sqlstr.complete_hah_select()
+    sqlstr = gen_sqlstr.compress_hah_select()
     c.execute(sqlstr)
     res = c.fetchall()
     i = 1
@@ -577,7 +577,7 @@ def compressHah():
         except Exception as e:
             print(zip_file_name)
             print('compress error:', manga[0], '\n', e)
-            sqlstr = f'UPDATE manga SET autostate = -4,remark="compress hah error" WHERE id="{manga[0]}";'
+            sqlstr = gen_sqlstr.compress_hah_error(e,manga[0])
             c.execute(sqlstr)
             conn.commit()
             i += 1
