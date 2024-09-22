@@ -6,6 +6,9 @@ import config
 import datetime
 import qbittorrentapi
 
+
+
+
 qbt_client = qbittorrentapi.Client(**config.qbit_login)
 qbt_client.auth_log_in()
 
@@ -104,7 +107,7 @@ while i < lense:
             errortemplist.append(manga)
             if errorflag2 >= 5:
                 for mangatemp in errortemplist:
-                    sqlstr = 'UPDATE manga SET state = 2 WHERE state = 6 AND id = "%s"' % (manga[0])
+                    sqlstr = 'UPDATE manga SET state = 2 WHERE state = 6 AND id = "%s"' % (mangatemp[0])
                     c.execute(sqlstr)
                 conn.commit()
                 raise 'download torrent error:The torrent file could not be found'
