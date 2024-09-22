@@ -404,7 +404,7 @@ def download_hah(run_mode):
             print(downlink)
             print(zipname)
             # download_aria2(downlink, zipname)
-            download_file(downlink, zipname)
+            download_file(downlink, os.path.join(config.direct_download_path,zipname))
             sqlstr = gen_sqlstr.direct_download_success(zipname, manga[0])
             c.execute(sqlstr)
             conn.commit()
