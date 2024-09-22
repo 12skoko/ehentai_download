@@ -366,9 +366,11 @@ def download_hah(run_mode):
         else:
             hah_cost = int(hah_cost[:-3].replace(',', ''))
 
-        downflag = 0
+        downflag = 1
         if direct_cost == 0 or direct_cost < hah_cost or hah_cost > 8000 or hah_cost < 400:
             downflag = 0
+
+        downflag = 1
 
         postlink = info[12].replace('--', '-')
         if downflag == 0:
