@@ -405,7 +405,7 @@ def download_hah(run_mode):
             print(zipname)
             # download_aria2(downlink, zipname)
             download_file(downlink, zipname)
-            sqlstr = 'UPDATE manga SET autostate = 11 ,filename="%s" WHERE id = "%s"' % (zipname, manga[0])
+            sqlstr = gen_sqlstr.direct_download_success(zipname, manga[0])
             c.execute(sqlstr)
             conn.commit()
 
