@@ -300,9 +300,9 @@ def download_hah(run_mode):
     dev = 0
     i = 0
     errorflag = 0
-    proxy = config.proxies0
+    proxy = config.proxies1
     while i < lense:
-        proxy = config.proxyPool[(datetime.datetime.now().hour + dev) % len(config.proxyPool)]
+        # proxy = config.proxyPool[(datetime.datetime.now().hour + dev) % len(config.proxyPool)]
         manga = mangaList[i]
         print(str(i + 1) + '/' + str(lense))
         url = manga[2]
@@ -403,7 +403,8 @@ def download_hah(run_mode):
                 zipname = '[' + manga[0].split('/')[0] + ']' + re.sub(r'[\\/*?:"<>|]', '_', name) + '.zip'
             print(downlink)
             print(zipname)
-            download_aria2(downlink, zipname)
+            # download_aria2(downlink, zipname)
+            download_file(downlink, zipname)
             sqlstr = 'UPDATE manga SET autostate = 11 ,filename="%s" WHERE id = "%s"' % (zipname, manga[0])
             c.execute(sqlstr)
             conn.commit()
