@@ -128,6 +128,7 @@ def parseinfo(html):
     rating = int(float(soup.find("td", id="rating_label").text.replace("Average: ", "")) * 100)
     tagstrings = soup.find("div", id="taglist")
     taglist = []
+    row = ''
     for text in tagstrings.strings:
         if ':' in text:
             row = text
@@ -300,7 +301,7 @@ def download_hah(run_mode):
     errorflag = 0
     proxy = config.proxies0
     while i < lense:
-        proxy = config.proxyPool[dev % len(config.proxyPool)]
+        proxy = config.proxyPool[(datetime.datetime.now().hour + dev) % len(config.proxyPool)]
         manga = mangaList[i]
         print(str(i + 1) + '/' + str(lense))
         url = manga[2]
@@ -321,9 +322,9 @@ def download_hah(run_mode):
         id = manga[0]
         name = html.unescape(info[0]).replace('"', '""')
         realname = getRealname(name)
-        filename = manga[15]
+        filename = manga[15].replace('"', '""')
         updatetime = time.time()
-        tag_tran = tagTrans.getTrans(info[11])
+        tag_tran = tagTrans.getTrans(info[11]).replace('"', '""')
 
         sqlstr = 'SELECT * FROM mangainfo WHERE id = "%s"' % (manga[0])
         c.execute(sqlstr)
@@ -348,9 +349,7 @@ def download_hah(run_mode):
         downloadlink = info[12]
         downpage = se.get(info[12], headers=config.header, cookies=config.cookies2, proxies=proxy).text
         soup2 = BeautifulSoup(downpage, 'lxml')
-        direct_cost = soup2.find("div", style="width:180px; float:left").find("div",
-                                                                              style="text-align:center; margin-top:4px").find(
-            "strong").text
+        direct_cost = soup2.find("div", style="width:180px; float:left").find("div", style="text-align:center; margin-top:4px").find("strong").text
         if direct_cost == 'Free!':
             direct_cost = 0
         else:
@@ -374,8 +373,7 @@ def download_hah(run_mode):
         postlink = info[12].replace('--', '-')
         if downflag == 0:
             print('hah download')
-            req2 = se.post(postlink, headers=config.header, cookies=config.cookies2, data={'hathdl_xres': 'org'},
-                           proxies=proxy).text
+            req2 = se.post(postlink, headers=config.header, cookies=config.cookies2, data={'hathdl_xres': 'org'}, proxies=proxy).text
             if 'An original resolution download has been queued for client' not in req2:
                 print(postlink)
                 print(req2)
