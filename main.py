@@ -45,8 +45,8 @@ start_date = datetime.now() + timedelta(seconds=1)
 scheduler = BlockingScheduler()
 
 scheduler.add_job(run_py, args=("collect.py", "collect"), trigger='interval', hours=6, seconds=7, start_date=start_date)
-scheduler.add_job(run_py, args=("downloadTorrent.py --main --hah", "downloadTorrent"), trigger='interval', hours=2, seconds=3, start_date=start_date)
-scheduler.add_job(run_py, args=("downloadHah.py --main", "downloadHah"), trigger='interval', hours=2, seconds=2, start_date=start_date)
-scheduler.add_job(run_py, args=("completeDownload.py --main", "completeDownload"), trigger='interval', hours=1, seconds=1, start_date=start_date)
+scheduler.add_job(run_py, args=("download_torrent.py --main --hah", "downloadTorrent"), trigger='interval', hours=2, seconds=3, start_date=start_date)
+scheduler.add_job(run_py, args=("download_hah.py --main", "downloadHah"), trigger='interval', hours=2, seconds=2, start_date=start_date)
+scheduler.add_job(run_py, args=("complete_download.py --main", "completeDownload"), trigger='interval', hours=1, seconds=1, start_date=start_date)
 
 scheduler.start()
