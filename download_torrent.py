@@ -92,6 +92,7 @@ def download_torrent(run_mode):
         manga = mangaList[i]
         print(str(i + 1) + '/' + str(lense))
         if manga[3] == '':
+            sqlstr = gen_sqlstr.no_seeds(manga[0])
             c.execute(sqlstr)
             conn.commit()
             i += 1

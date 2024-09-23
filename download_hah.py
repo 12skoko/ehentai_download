@@ -285,7 +285,7 @@ def download_aria2(url, file_name, checkout=0):
         i_time += 0
 
 
-def download_hah(run_mode):
+def download_hah(run_mode, download_mode):
     se = requests.session()
 
     tagTrans = EhTagTranslation()
@@ -371,7 +371,10 @@ def download_hah(run_mode):
         if direct_cost == 0 or direct_cost < hah_cost or hah_cost > 8000 or hah_cost < 400:
             downflag = 0
 
-        # downflag = 0
+        if download_mode == 'hah':
+            downflag = 0
+        elif download_mode == 'direct':
+            downflag = 1
 
         postlink = info[12].replace('--', '-')
         if downflag == 0:
@@ -404,7 +407,7 @@ def download_hah(run_mode):
             print(downlink)
             print(zipname)
             # download_aria2(downlink, zipname)
-            download_file(downlink, os.path.join(config.direct_download_path,zipname))
+            download_file(downlink, os.path.join(config.direct_download_path, zipname))
             sqlstr = gen_sqlstr.direct_download_success(zipname, manga[0])
             c.execute(sqlstr)
             conn.commit()
@@ -474,6 +477,8 @@ if __name__ == "__main__":
     parser.add_argument("--main", action="store_true")
     parser.add_argument("--old", action="store_true")
     parser.add_argument("--special", action="store_true")
+    parser.add_argument("--hah", action="store_true")
+    parser.add_argument("--direct", action="store_true")
 
     args = parser.parse_args()
 
@@ -490,4 +495,13 @@ if __name__ == "__main__":
 
     gen_sqlstr = Gen_sqlstr(run_mode)
 
-    download_hah(run_mode)
+    if sum(args.hah, args.direct) == 2:
+        raise 'wrong args'
+    if args.hah:
+        download_mode = 'hah'
+    elif args.direct:
+        download_mode = 'direct'
+    else:
+        download_mode = 'auto'
+
+    download_hah(run_mode, download_mode)
