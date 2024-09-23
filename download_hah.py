@@ -495,7 +495,7 @@ if __name__ == "__main__":
 
     gen_sqlstr = Gen_sqlstr(run_mode)
 
-    if sum(args.hah, args.direct) == 2:
+    if args.hah == True and args.direct == True:
         raise 'wrong args'
     if args.hah:
         download_mode = 'hah'
