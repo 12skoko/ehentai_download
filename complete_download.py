@@ -577,7 +577,7 @@ def compressHah():
         except Exception as e:
             print(zip_file_name)
             print('compress error:', manga[0], '\n', e)
-            sqlstr = gen_sqlstr.compress_hah_error(e,manga[0])
+            sqlstr = gen_sqlstr.compress_hah_error(e, manga[0])
             c.execute(sqlstr)
             conn.commit()
             i += 1
@@ -592,7 +592,7 @@ def collectTorrent(run_mode):
     print('-------------------collectTorrent-------------------')
     se = requests.session()
     tagTrans = EhTagTranslation()
-    sqlstr = 'SELECT * FROM manga WHERE autostate = 5 ORDER BY timestamp DESC;'
+    sqlstr = gen_sqlstr.collect_torrent_select()
     c.execute(sqlstr)
     mangaList = c.fetchall()
     lense = len(mangaList)
