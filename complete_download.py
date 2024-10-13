@@ -482,12 +482,15 @@ def DeleteOutdate():
             # print(deleteurl)
             res2 = requests.delete(deleteurl, headers=config.raragi_auth)
             # print(res2.text)
+            res3 = eval(requests.get(searchurl, headers=config.raragi_auth).text)
+            if res3['data'] == []:
+                sqlstr = f'UPDATE manga SET remark="deleted" WHERE id="{i[0]}";'
+                c.execute(sqlstr)
+                conn.commit()
+
         elif res1["recordsFiltered"] > 1:
             print(searchurl)
             raise '过期存档id重复'
-        sqlstr = f'UPDATE manga SET remark="deleted" WHERE id="{i[0]}";'
-        c.execute(sqlstr)
-        conn.commit()
 
 
 def completeTorrent():
