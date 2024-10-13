@@ -745,46 +745,46 @@ def delete():
             i += 1
 
     # 删除aria2下载记录
-    json_rpc_data = {
-        'jsonrpc': '2.0',
-        'method': 'aria2.tellStopped',
-        'id': 'qwer',
-        'params': [
-            f'token:{config.aria2_rpc_token}',
-            0,  # 偏移量，表示从第一个任务开始查询
-            1000  # 最大返回任务数，可以根据需要调整
-        ]
-    }
-    response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
-    completed_tasks = response.json().get('result', [])
-    i = 1
-    length = str(len(completed_tasks))
-    for task in completed_tasks:
-        taskid = task['gid']
-        file_name = os.path.basename(task['files'][0]['path'])
-        id = re.search('\[(\d+)\].+', file_name)[1]
-        sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}%";'
-        c.execute(sqlstr)
-        res = c.fetchall()
-        if res:
-            json_rpc_data = {
-                'jsonrpc': '2.0',
-                'method': 'aria2.removeDownloadResult',
-                'id': 'qwer',
-                'params': [
-                    f'token:{config.aria2_rpc_token}',
-                    taskid
-                ]
-            }
-            response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
-            if response.status_code == 200 and 'result' in response.json():
-                print('deleted_aria2 ' + str(i) + '/' + length + ':' + file_name)
-            else:
-                print(json_rpc_data)
-                print(f"删除任务失败: {response.status_code} {response.text}" + file_name)
-                raise 'aria2删除任务失败'
-            time.sleep(0.2)
-        i += 1
+    # json_rpc_data = {
+    #     'jsonrpc': '2.0',
+    #     'method': 'aria2.tellStopped',
+    #     'id': 'qwer',
+    #     'params': [
+    #         f'token:{config.aria2_rpc_token}',
+    #         0,  # 偏移量，表示从第一个任务开始查询
+    #         1000  # 最大返回任务数，可以根据需要调整
+    #     ]
+    # }
+    # response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
+    # completed_tasks = response.json().get('result', [])
+    # i = 1
+    # length = str(len(completed_tasks))
+    # for task in completed_tasks:
+    #     taskid = task['gid']
+    #     file_name = os.path.basename(task['files'][0]['path'])
+    #     id = re.search('\[(\d+)\].+', file_name)[1]
+    #     sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}%";'
+    #     c.execute(sqlstr)
+    #     res = c.fetchall()
+    #     if res:
+    #         json_rpc_data = {
+    #             'jsonrpc': '2.0',
+    #             'method': 'aria2.removeDownloadResult',
+    #             'id': 'qwer',
+    #             'params': [
+    #                 f'token:{config.aria2_rpc_token}',
+    #                 taskid
+    #             ]
+    #         }
+    #         response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
+    #         if response.status_code == 200 and 'result' in response.json():
+    #             print('deleted_aria2 ' + str(i) + '/' + length + ':' + file_name)
+    #         else:
+    #             print(json_rpc_data)
+    #             print(f"删除任务失败: {response.status_code} {response.text}" + file_name)
+    #             raise 'aria2删除任务失败'
+    #         time.sleep(0.2)
+    #     i += 1
 
     # 删除种子下载文件
     contents = os.listdir(config.torrent_download_path)
@@ -877,24 +877,24 @@ def delete():
         i += 1
 
     # 删除aria2下载文件
-    contents = os.listdir(config.aria2_download_path)
-    i = 1
-    length = str(len(contents))
-    for item in contents:
-        try:
-            id = re.search('\[(\d+)\].+', item)[1]
-        except:
-            continue
-        sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}%";'
-        c.execute(sqlstr)
-        res = c.fetchall()
-        if res:
-            # print(item)
-            file_path = os.path.join(config.aria2_delete_path, item)
-            os.remove(file_path)
-            time.sleep(0.2)
-            print('deleted ' + str(i) + '/' + length + ':' + file_path)
-        i += 1
+    # contents = os.listdir(config.aria2_download_path)
+    # i = 1
+    # length = str(len(contents))
+    # for item in contents:
+    #     try:
+    #         id = re.search('\[(\d+)\].+', item)[1]
+    #     except:
+    #         continue
+    #     sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}%";'
+    #     c.execute(sqlstr)
+    #     res = c.fetchall()
+    #     if res:
+    #         # print(item)
+    #         file_path = os.path.join(config.aria2_delete_path, item)
+    #         os.remove(file_path)
+    #         time.sleep(0.2)
+    #         print('deleted ' + str(i) + '/' + length + ':' + file_path)
+    #     i += 1
 
 
 if __name__ == "__main__":
