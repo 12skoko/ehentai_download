@@ -1,0 +1,8 @@
+APScheduler==3.10.4
+beautifulsoup4==4.12.3
+paramiko==3.4.0
+PyMySQL==1.1.1
+qbittorrent_api==2024.3.60
+Requests==2.32.3
+requests_toolbelt==1.0.0
+tqdm==4.66.4
