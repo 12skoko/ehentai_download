@@ -936,12 +936,12 @@ if __name__ == "__main__":
 
     if run_mode == "main":
         deleteLog()
-        DeleteOutdate()
         completeTorrent()
         completeHah()
         compressTorrent()
         compressHah()
         collectTorrent(run_mode)
+        DeleteOutdate()
         uploadall(run_mode)
         delete()
         print('done')
