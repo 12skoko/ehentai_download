@@ -6,3 +6,4 @@ qbittorrent_api==2024.3.60
 Requests==2.32.3
 requests_toolbelt==1.0.0
 tqdm==4.66.4
+lxml
