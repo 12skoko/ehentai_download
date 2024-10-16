@@ -166,12 +166,13 @@ def collect(baseurl, end, mark):
 
             print(sqlstr)
             c.execute(sqlstr)
+            conn.commit()
 
 
         nowPage += 1
         time.sleep(5 + random.randint(0, 10))
 
-    conn.commit()
+
 
 
 def screenall():
