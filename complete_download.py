@@ -905,6 +905,8 @@ if __name__ == "__main__":
     parser.add_argument("--old", action="store_true")
     parser.add_argument("--special", action="store_true")
 
+    parser.add_argument("--interval", type=int, default=3600)
+
     args = parser.parse_args()
 
     if args.special == True:
@@ -955,4 +957,4 @@ if __name__ == "__main__":
             uploadall(run_mode)
             delete()
             print('done')
-            time.sleep(3600)
+            time.sleep(args.interval)
