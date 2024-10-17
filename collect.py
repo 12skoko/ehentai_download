@@ -183,10 +183,19 @@ def screenall():
     count = {}
     co = 0
     length = str(len(undetermined_all_book))
+    languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese']
 
     for manga in undetermined_all_book:
         co += 1
         print(str(co) + '/' + length)
+
+        if 'translated' in manga[6]:
+            if any(lang in manga[6] for lang in languages):
+                sqlstr = 'UPDATE manga SET autostate = 3 , remark = "Non Chinese translation" WHERE id="' + manga[0] + '";'
+                print(manga[1], sqlstr)
+                c.execute(sqlstr)
+                conn.commit()
+                continue
 
         similarList = []
         realname = manga[13]
