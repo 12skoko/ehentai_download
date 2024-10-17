@@ -7,7 +7,6 @@ import datetime
 import html
 
 
-
 def getRealname(name):
     length = len(name)
     s = 0
@@ -159,6 +158,11 @@ def collect(baseurl, end, mark):
             else:
                 autostate = '-1'
 
+            languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese']
+            if 'translated' in tag and 'chinese' not in tag:
+                if any(lang in tag for lang in languages):
+                    continue
+
             if exist == 0:
                 sqlstr = f'INSERT INTO manga (id,name,link,torrentlink,time,type,tag,pages,rating,autostate,realname,timestamp)values("{id}","{name}","{link}","{torrentLink}","{timestr}","{type}","{tag}",{pages},{rating},{autostate},"{realname}","{timestamp}");'
             else:
@@ -168,11 +172,8 @@ def collect(baseurl, end, mark):
             c.execute(sqlstr)
             conn.commit()
 
-
         nowPage += 1
         time.sleep(5 + random.randint(0, 10))
-
-
 
 
 def screenall():
@@ -183,19 +184,10 @@ def screenall():
     count = {}
     co = 0
     length = str(len(undetermined_all_book))
-    languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese']
 
     for manga in undetermined_all_book:
         co += 1
         print(str(co) + '/' + length)
-
-        if 'translated' in manga[6]:
-            if any(lang in manga[6] for lang in languages):
-                sqlstr = 'UPDATE manga SET autostate = 3 , remark = "Non Chinese translation" WHERE id="' + manga[0] + '";'
-                print(manga[1], sqlstr)
-                c.execute(sqlstr)
-                conn.commit()
-                continue
 
         similarList = []
         realname = manga[13]
