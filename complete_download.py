@@ -478,7 +478,7 @@ def DeleteOutdate():
             print('deleted_outdate:', i[0], i[1])
             id = res1['data'][0]['arcid']
             # print(id)
-            deleteurl = config.raragi_url + '/apiarchives/' + id
+            deleteurl = config.raragi_url + '/api/archives/' + id
             # print(deleteurl)
             res2 = requests.delete(deleteurl, headers=config.raragi_auth)
             # print(res2.text)
