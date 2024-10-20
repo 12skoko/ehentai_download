@@ -308,6 +308,14 @@ def download_hah(run_mode, download_mode):
         url = manga[2]
         try:
             data = se.get(url, headers=config.header, cookies=config.cookies2, proxies=proxy).text
+            if 'This gallery is unavailable due to a copyright claim' in data:
+                sqlstr = f'UPDATE manga SET state = 4 , autostate = NULL , remark="This gallery is unavailable due to a copyright claim" WHERE id = "{manga[0]}"'
+                print(sqlstr)
+                c.execute(sqlstr)
+                conn.commit()
+                i += 1
+                time.sleep(10)
+                continue
             info = parseinfo(data)
         except:
             print('error', url, proxy)
