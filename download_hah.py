@@ -168,7 +168,7 @@ def download_file(url, filename, retries=3, min_speed=0, check_interval=5):
             total_size = int(response.headers.get('content-length', 0))
             block_size = 1024
 
-            progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True)
+            progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True, position=0, leave=True)
             start_time = time.time()
             downloaded_size = 0
 
