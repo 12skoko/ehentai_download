@@ -187,26 +187,26 @@ def download_file(url, filename, retries=3, min_speed=0, check_interval=5):
                         start_time = time.time()  # 重置计时
                         downloaded_size = 0
 
-            progress_bar.close()
+                progress_bar.close()
 
             if total_size != 0 and progress_bar.n != total_size:
                 raise Exception("ERROR: download error - file size mismatch")
 
             print("Download completed successfully.")
-            return  # 成功下载后退出函数
+            return
 
         except (ConnectionError, Exception) as e:
             attempt += 1
             try:
-                progress_bar.close()  # 确保进度条关闭
+                progress_bar.close()
             except:
                 pass
             print(f"Download attempt {attempt}/{retries} failed: {e}")
             if attempt < retries:
                 print("Retrying...")
-                time.sleep(200)  # 等待一段时间后重试
+                time.sleep(200)
             else:
-                raise "Max retries reached. Raising error to terminate program."  # 超过重试次数后抛出异常终止程序
+                raise "Max retries reached. Raising error to terminate program."
 
 
 def download_aria2(url, file_name, checkout=0):
