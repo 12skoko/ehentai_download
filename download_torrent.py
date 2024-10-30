@@ -12,6 +12,17 @@ class Gen_sqlstr():
     def __init__(self, run_mode):
         self.run_mode = run_mode
 
+    def torrent_category(self):
+        if self.run_mode == "main":
+            torrent_category = 'autoehentai'
+        elif self.run_mode == "old":
+            torrent_category = 'ehentai'
+        elif self.run_mode == "special":
+            torrent_category = 'specialehentai'
+        else:
+            raise "unkown run_mode"
+        return torrent_category
+
     def select_download_torrent(self):
         if self.run_mode == "main":
             sqlstr = 'SELECT * FROM manga WHERE autostate = 2 ORDER BY timestamp DESC;'
@@ -179,7 +190,7 @@ def download_torrent(run_mode):
                 print(torrentLink)
                 idnum = manga[0].split('/')[0]
                 qbt_client.torrents_add(torrent_files=response.content,
-                                        save_path=config.qbit_torrent_path + idnum, category="autoehentai",
+                                        save_path=config.qbit_torrent_path + idnum, category=gen_sqlstr.torrent_category(),
                                         rename=idnum)
                 time.sleep(3)
                 torrentinfo = ''
