@@ -126,6 +126,9 @@ def collect(baseurl, end, mark):
         errorflag = 0
         re_info = """<div class=\"cn ct.\" onclick=\".*?\">(.*?)</div>.*?<div onclick=\"popUp.*?\" id=\"postedpop_.+?\">(.*?)</div>.*?<div class=\"ir\" style=\"background-position:-?(\d+)px -?(\d+)px;opacity:1\"></div>.*?<div class=\"gldown\">(.*?)</div>.*?<a href=\"(https://exhentai.org/g/(.*?)/)\"><div class=\"glink\">(.*?)</div><div>(.*?)</div></a>.*?<div>(\d+) pages</div>"""
         resList = re.findall(re_info, data)
+        print('find ', len(resList))
+        if len(resList) == 0:
+            raise 'error'
         for res in resList:
             id = res[6]
             name = html.unescape(res[7]).replace('"', '""')

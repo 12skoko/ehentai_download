@@ -44,44 +44,6 @@ def getRealname(name):
     return realname
 
 
-def getRandom():
-    sqlstr = 'SELECT id FROM random WHERE is_used=0 LIMIT 1;'
-    c.execute(sqlstr)
-    num = c.fetchall()[0][0]
-    sqlstr = 'UPDATE random SET is_used=1 WHERE id=' + str(num) + ';'
-    c.execute(sqlstr)
-    conn.commit()
-    return num
-
-
-def select(lists):
-    sorted_list = sorted(lists, key=lambda x: x[0], reverse=True)
-    return sorted_list[0][1]
-
-
-def screen(similarFlagList):
-    res = [0] * len(similarFlagList)
-    filterDict1 = {1: [], 2: [], 3: []}
-    for i in range(len(similarFlagList)):
-        similarFlag = similarFlagList[i]
-        filterDict1[similarFlag // 10].append((round(similarFlag - (similarFlag // 10) * 10, 12), i))
-    if filterDict1[3] != []:
-        filterDict2 = filterDict1[3]
-    elif filterDict1[2] != []:
-        filterDict2 = filterDict1[2]
-    else:
-        filterDict2 = filterDict1[1]
-    filterDict3 = {}
-    for i in filterDict2:
-        if int(i[0]) in filterDict3:
-            filterDict3[int(i[0])].append((round(i[0] - int(i[0]), 12), i[1]))
-        else:
-            filterDict3[int(i[0])] = [(round(i[0] - int(i[0]), 12), i[1])]
-    for i in filterDict3:
-        res[select(filterDict3[i])] = 1
-    return res
-
-
 def calRating(a, b):
     rating = (5 - int(a) // 16) * 10
     if b == '21':
@@ -116,8 +78,8 @@ def collect(baseurl, end, mark):
 
         re_info = """<div class=\"cn ct.\" onclick=\".*?\">(.*?)</div>.*?<div onclick=\"popUp.*?\" id=\"postedpop_.+?\">(.*?)</div>.*?<div class=\"ir\" style=\"background-position:-?(\d+)px -?(\d+)px;opacity:1\"></div>.*?<div class=\"gldown\">(.*?)</div>.*?<a href=\"(https://exhentai.org/g/(.*?)/)\"><div class=\"glink\">(.*?)</div><div>(.*?)</div></a>.*?<div>(\d+) pages</div>"""
         resList = re.findall(re_info, data)
-        print('find ',len(resList))
-        if len(resList)==0:
+        print('find ', len(resList))
+        if len(resList) == 0:
             raise 'error'
         for res in resList:
             id = res[6]
@@ -153,6 +115,11 @@ def collect(baseurl, end, mark):
 
             state = 13
 
+            languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese']
+            if 'translated' in tag and 'chinese' not in tag:
+                if any(lang in tag for lang in languages):
+                    continue
+
             if exist == 0:
                 sqlstr = f'INSERT INTO manga (id,name,link,torrentlink,time,type,tag,pages,rating,state,realname,timestamp)values("{id}","{name}","{link}","{torrentLink}","{timestr}","{type}","{tag}",{pages},{rating},{state},"{realname}","{timestamp}");'
             else:
@@ -171,7 +138,7 @@ se = requests.session()
 conn = config.conn
 c = conn.cursor()
 
-artist=[
+artist = [
     # 'tamano kedama',
     # 'rico',
     # 'mutou mato',
@@ -189,12 +156,20 @@ artist=[
     # 'okada kou'
     # 'muk',
     # 'fummy',
-    # 'shouji ayumu'
-
+    # 'shouji ayumu',
+    'pirason',
+    'shimanto shisakugata',
+    'atage',
+    'airandou',
+    'maeshima ryou',
+    'kuromotokun',
+    'healthyman',
+    'mdo-h',
+    'henrybird'
 ]
 
 for art in artist:
-    url='https://exhentai.org/tag/artist:'+art.replace(' ','+')+'?f_sft=on&f_sfu=on'
+    url = 'https://exhentai.org/tag/artist:' + art.replace(' ', '+') + '?f_sft=on&f_sfu=on'
     print(url)
     collect(url, 0, art)
 
