@@ -151,15 +151,6 @@ def parse_file_size(size_str):
 
 
 def download_file(url, filename, retries=3, min_speed=0, check_interval=5):
-    """
-    下载文件并监控下载速度，支持错误和速度低于阈值时的重试机制。
-
-    :param url: 下载链接
-    :param filename: 文件保存路径
-    :param retries: 最大重试次数
-    :param min_speed: 速度阈值 (kB/s)
-    :param check_interval: 检查速度的间隔时间 (秒)
-    """
     attempt = 0
     while attempt < retries:
         try:
@@ -168,7 +159,7 @@ def download_file(url, filename, retries=3, min_speed=0, check_interval=5):
             total_size = int(response.headers.get('content-length', 0))
             block_size = 1024
 
-            progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True, position=0, ncols=80)
+            progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True, position=0, ncols=60)
             start_time = time.time()
             downloaded_size = 0
 
