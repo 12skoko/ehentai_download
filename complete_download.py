@@ -728,7 +728,7 @@ def delete():
     torrents = qbt_client.torrents_info()
     length = str(len(torrents))
     for torrent in torrents:
-        if torrent.category == 'autoehentai':
+        if torrent.category == 'autoehentai' or torrent.category == 'specialehentai' or torrent.category == 'ehentai':
             if 'fatel' in torrent.tags:
                 qbt_client.torrents_delete(delete_files=True, torrent_hashes=torrent.hash)
                 time.sleep(0.2)
