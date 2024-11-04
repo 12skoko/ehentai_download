@@ -32,10 +32,10 @@ def run_py(py_cmd, mark_name):
             f.write('\n\n\n' + str(run_cmd) + '\n\n\n' + e.stderr)
             f.close()
             py_name = py_cmd.split(' ')[0]
-            subject = time + '---' + py_name + " error"
+            subject = "EH download error"
             with open(output_file, "r", encoding='utf-8') as ft:
                 context = ft.read()
-            message = str(run_cmd) + '\n' + context + '\n\n\n' + e.stderr
+            message = time + '---' + py_name + " error" + '\n\n' + str(run_cmd) + '\n\n' + context
             sendEmail(config.sender_email, config.email_auth, config.rec_email, subject, message)
             scheduler.shutdown()
             raise 'run_py error'
@@ -45,8 +45,11 @@ start_date = datetime.now() + timedelta(seconds=1)
 scheduler = BlockingScheduler()
 
 scheduler.add_job(run_py, args=("collect.py", "collect"), trigger='interval', hours=6, seconds=7, start_date=start_date)
-scheduler.add_job(run_py, args=("download_torrent.py --main", "downloadTorrent"), trigger='interval', hours=2, seconds=3, start_date=start_date)
-scheduler.add_job(run_py, args=("download_hah.py --main --hah", "downloadHah"), trigger='interval', hours=2, seconds=2, start_date=start_date)
-scheduler.add_job(run_py, args=("complete_download.py --main", "completeDownload"), trigger='interval', hours=1, seconds=1, start_date=start_date)
+scheduler.add_job(run_py, args=("download_torrent.py --main", "downloadTorrent"), trigger='interval', hours=2,
+                  seconds=3, start_date=start_date)
+scheduler.add_job(run_py, args=("download_hah.py --main --hah", "downloadHah"), trigger='interval', hours=2, seconds=2,
+                  start_date=start_date)
+scheduler.add_job(run_py, args=("complete_download.py --main", "completeDownload"), trigger='interval', hours=1,
+                  seconds=1, start_date=start_date)
 
 scheduler.start()
