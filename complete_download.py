@@ -960,3 +960,4 @@ if __name__ == "__main__":
             print('done')
             time.sleep(args.interval)
             conn = config.createDBconn()
+            c = conn.cursor()
