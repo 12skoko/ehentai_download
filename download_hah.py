@@ -281,7 +281,7 @@ def download_hah(run_mode, download_mode):
 
     tagTrans = EhTagTranslation()
 
-    conn = config.conn
+    conn = config.createDBconn()
     c = conn.cursor()
 
     sqlstr = gen_sqlstr.select_download_hah()

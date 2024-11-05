@@ -251,7 +251,7 @@ def screenall():
                 conn.commit()
 
 
-conn = config.conn
+conn = config.createDBconn()
 c = conn.cursor()
 
 sqlstr = 'SELECT id FROM manga WHERE autostate!=-1 ORDER BY timestamp DESC LIMIT 1;'

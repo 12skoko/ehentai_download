@@ -83,7 +83,7 @@ def download_torrent(run_mode):
     qbt_client = qbittorrentapi.Client(**config.qbit_login)
     qbt_client.auth_log_in()
 
-    conn = config.conn
+    conn = config.createDBconn()
     c = conn.cursor()
 
     se = requests.session()

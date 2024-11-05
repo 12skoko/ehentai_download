@@ -135,7 +135,7 @@ def collect(baseurl, end, mark):
 
 se = requests.session()
 
-conn = config.conn
+conn = config.createDBconn()
 c = conn.cursor()
 
 artist = [

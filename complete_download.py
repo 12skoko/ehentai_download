@@ -926,7 +926,7 @@ if __name__ == "__main__":
     cook = req.headers['Set-Cookie'].split("=")
     raragiCookie = {cook[0]: cook[1]}
 
-    conn = config.conn
+    conn = config.createDBconn()
     c = conn.cursor()
 
     qbt_client = qbittorrentapi.Client(**config.qbit_login)
@@ -956,5 +956,7 @@ if __name__ == "__main__":
             collectTorrent(run_mode)
             uploadall(run_mode)
             delete()
+            conn.close()
             print('done')
             time.sleep(args.interval)
+            conn = config.createDBconn()
