@@ -283,7 +283,7 @@ def main_upload(manga, directorypath):
             encoder = MultipartEncoder(
                 fields={'file': (filepath, file_obj, 'application/x-zip-compressed'), 'catid': ''})
             response = requests.post(config.raragi_url + '/upload', data=encoder, cookies=raragiCookie,
-                                     headers={'Content-Type': encoder.content_type})
+                                     headers={'Content-Type': encoder.content_type},timeout=10)
 
     except Exception as e:
         sqlstr = 'UPDATE manga SET autostate = -5 ,remark="%s|%s" WHERE id = "%s"' % (e, filepath, manga[0])
