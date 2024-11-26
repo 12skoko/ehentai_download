@@ -283,7 +283,7 @@ def main_upload(manga, directorypath):
             encoder = MultipartEncoder(
                 fields={'file': (filepath, file_obj, 'application/x-zip-compressed'), 'catid': ''})
             response = requests.post(config.raragi_url + '/upload', data=encoder, cookies=raragiCookie,
-                                     headers={'Content-Type': encoder.content_type},timeout=10)
+                                     headers={'Content-Type': encoder.content_type}, timeout=10)
 
     except Exception as e:
         sqlstr = 'UPDATE manga SET autostate = -5 ,remark="%s|%s" WHERE id = "%s"' % (e, filepath, manga[0])
@@ -474,9 +474,8 @@ def DeleteOutdate():
     for i in res:
         searchurl = config.raragi_url + '/api/search?filter=' + i[0]
         res1 = eval(requests.get(searchurl, headers=config.raragi_auth).text)
-        if res1["recordsFiltered"] == 1:
+        if res1["recordsFiltered"] == 1 and res1["data"] != []:
             print('deleted_outdate:', i[0], i[1])
-            print(res1)
             id = res1['data'][0]['arcid']
             # print(id)
             deleteurl = config.raragi_url + '/api/archives/' + id
