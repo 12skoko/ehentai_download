@@ -476,6 +476,7 @@ def DeleteOutdate():
         res1 = eval(requests.get(searchurl, headers=config.raragi_auth).text)
         if res1["recordsFiltered"] == 1:
             print('deleted_outdate:', i[0], i[1])
+            print(res1)
             id = res1['data'][0]['arcid']
             # print(id)
             deleteurl = config.raragi_url + '/api/archives/' + id
