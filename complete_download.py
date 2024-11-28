@@ -492,6 +492,11 @@ def DeleteOutdate():
             print(searchurl)
             raise '过期存档id重复'
 
+        elif res1["recordsFiltered"] == 0:
+            sqlstr = f'UPDATE manga SET remark="deleted" WHERE id="{i[0]}";'
+            c.execute(sqlstr)
+            conn.commit()
+
 
 def completeTorrent():
     print('-------------------completeTorrent-------------------')
