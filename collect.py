@@ -161,7 +161,7 @@ def collect(baseurl, end, mark):
             else:
                 autostate = '-1'
 
-            languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese']
+            languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese','ukrainian']
             if 'translated' in tag and 'chinese' not in tag:
                 if any(lang in tag for lang in languages):
                     continue
