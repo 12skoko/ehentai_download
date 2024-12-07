@@ -966,3 +966,6 @@ if __name__ == "__main__":
             time.sleep(args.interval)
             conn = config.createDBconn()
             c = conn.cursor()
+            req = requests.post(url=config.raragi_url + "/login", data={'password': config.raragi_password})
+            cook = req.headers['Set-Cookie'].split("=")
+            raragiCookie = {cook[0]: cook[1]}
