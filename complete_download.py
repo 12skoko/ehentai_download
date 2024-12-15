@@ -876,7 +876,10 @@ def delete():
         if res:
             # print(item)
             file_path = os.path.join(config.direct_delete_path, item)
-            os.remove(file_path)
+            try:
+                os.remove(file_path)
+            except:
+                pass
             time.sleep(0.2)
             print('deleted ' + str(i) + '/' + length + ':' + file_path)
         i += 1
