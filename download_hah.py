@@ -150,7 +150,7 @@ def parse_file_size(size_str):
     return size * units[unit]
 
 
-def download_file(url, filename, retries=3, min_speed=0, check_interval=5):
+def download_file(url, filename, retries=3, min_speed=100, check_interval=5):
     attempt = 0
     while attempt < retries:
         try:
