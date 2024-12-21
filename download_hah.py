@@ -169,7 +169,7 @@ def download_file(url, filename, download_path, retries=3, min_speed=100, check_
             downloaded_size = 0
 
             filepath = os.path.join(download_path, filename)
-            temp_filepath = os.path.join(download_path, 'temp/', filename)
+            temp_filepath = os.path.join(download_path, '[0]temp/', filename)
 
             with open(temp_filepath, 'wb') as file:
                 for data in response.iter_content(block_size):
