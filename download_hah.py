@@ -159,14 +159,14 @@ def download_file(url, filename, download_path, retries=3, min_speed=100, check_
     attempt = 0
     while attempt < retries:
         try:
-            response = requests.get(url, headers=config.header, stream=True, proxies=config.proxies1)
-            response.raise_for_status()
-            total_size = int(response.headers.get('content-length', 0))
-            block_size = 1024
-
-            progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True, position=0, ncols=60)
-            start_time = time.time()
-            downloaded_size = 0
+            # response = requests.get(url, headers=config.header, stream=True, proxies=config.proxies1)
+            # response.raise_for_status()
+            # total_size = int(response.headers.get('content-length', 0))
+            # block_size = 1024
+            #
+            # progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True, position=0, ncols=60)
+            # start_time = time.time()
+            # downloaded_size = 0
 
             filepath = os.path.join(download_path, filename)
             temp_filepath = os.path.join(download_path, '/temp/')
