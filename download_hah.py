@@ -176,6 +176,8 @@ def download_file(url, filename, download_path, retries=3, min_speed=100, check_
             print(temp_filepath)
             print(filepath)
 
+            exit(6)
+
             with open(temp_filepath, 'wb') as file:
                 for data in response.iter_content(block_size):
                     file.write(data)
