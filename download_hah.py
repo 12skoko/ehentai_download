@@ -151,7 +151,7 @@ def parse_file_size(size_str):
     return size * units[unit]
 
 
-def download_file(url, filename,download_path, retries=3, min_speed=100, check_interval=5):
+def download_file(url, filename, download_path, retries=3, min_speed=100, check_interval=5):
     total, used, free = shutil.disk_usage(download_path)
     if free < 3221225472:
         print('空间不足3GB，中断下载')
@@ -168,8 +168,8 @@ def download_file(url, filename,download_path, retries=3, min_speed=100, check_i
             start_time = time.time()
             downloaded_size = 0
 
-            filepath=os.path.join(download_path,filename)
-            temp_filepath=os.path.join(download_path,'/temp',filename)
+            filepath = os.path.join(download_path, filename)
+            temp_filepath = os.path.join(download_path, '/temp', filename)
             with open(temp_filepath, 'wb') as file:
                 for data in response.iter_content(block_size):
                     file.write(data)
@@ -416,7 +416,7 @@ def download_hah(run_mode, download_mode):
             print(downlink)
             print(zipname)
             # download_aria2(downlink, zipname)
-            download_file(downlink, zipname,config.direct_download_path )
+            download_file(downlink, zipname, config.direct_download_path)
             sqlstr = gen_sqlstr.direct_download_success(zipname, manga[0])
             c.execute(sqlstr)
             conn.commit()
