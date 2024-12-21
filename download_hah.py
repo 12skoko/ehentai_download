@@ -10,6 +10,7 @@ from TagTranslation import EhTagTranslation
 import html
 import os
 from tqdm import tqdm
+import shutil
 
 
 class Gen_sqlstr():
@@ -151,6 +152,10 @@ def parse_file_size(size_str):
 
 
 def download_file(url, filename, retries=3, min_speed=100, check_interval=5):
+    total, used, free = shutil.disk_usage(config.direct_download_path)
+    if free < 3221225472:
+        print('空间不足3GB，中断下载')
+        raise 'not enough space'
     attempt = 0
     while attempt < retries:
         try:
