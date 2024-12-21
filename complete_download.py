@@ -707,6 +707,7 @@ def uploadall(run_mode):
         else:
             old_upload(manga, config.hah_zip_path)
         i += 1
+        print('upload success')
         time.sleep(2)
 
     sqlstr = gen_sqlstr.uploadall_direct()
@@ -721,6 +722,7 @@ def uploadall(run_mode):
         else:
             old_upload(manga, config.direct_download_path)
         i += 1
+        print('upload success')
         time.sleep(2)
 
     requests.post(config.raragi_url + '/api/regen_thumbs?force=0', cookies=raragiCookie)
