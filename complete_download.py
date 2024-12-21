@@ -692,6 +692,7 @@ def uploadall(run_mode):
             else:
                 old_upload(manga, os.path.join(config.torrent_download_path, manga[0].split('/')[0]))
         i += 1
+        print('upload success')
         time.sleep(2)
 
     sqlstr = gen_sqlstr.uploadall_hah()
