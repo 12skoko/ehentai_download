@@ -151,8 +151,8 @@ def parse_file_size(size_str):
     return size * units[unit]
 
 
-def download_file(url, filename, retries=3, min_speed=100, check_interval=5):
-    total, used, free = shutil.disk_usage(config.direct_download_path)
+def download_file(url, filename,download_path, retries=3, min_speed=100, check_interval=5):
+    total, used, free = shutil.disk_usage(download_path)
     if free < 3221225472:
         print('空间不足3GB，中断下载')
         raise 'not enough space'
@@ -168,7 +168,9 @@ def download_file(url, filename, retries=3, min_speed=100, check_interval=5):
             start_time = time.time()
             downloaded_size = 0
 
-            with open(filename, 'wb') as file:
+            filepath=os.path.join(download_path,filename)
+            temp_filepath=os.path.join(download_path,'/temp',filename)
+            with open(temp_filepath, 'wb') as file:
                 for data in response.iter_content(block_size):
                     file.write(data)
                     progress_bar.update(len(data))
@@ -188,6 +190,7 @@ def download_file(url, filename, retries=3, min_speed=100, check_interval=5):
             if total_size != 0 and progress_bar.n != total_size:
                 raise Exception("ERROR: download error - file size mismatch")
 
+            shutil.move(temp_filepath, filepath)
             print("Download completed successfully.")
             return
 
@@ -413,7 +416,7 @@ def download_hah(run_mode, download_mode):
             print(downlink)
             print(zipname)
             # download_aria2(downlink, zipname)
-            download_file(downlink, os.path.join(config.direct_download_path, zipname))
+            download_file(downlink, zipname,config.direct_download_path )
             sqlstr = gen_sqlstr.direct_download_success(zipname, manga[0])
             c.execute(sqlstr)
             conn.commit()
