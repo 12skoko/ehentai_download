@@ -870,10 +870,9 @@ def delete():
     # 删除直接下载文件
     contents = os.listdir(config.direct_download_path)
     i = 1
-    length = str(len(contents))
+    length = str(len(contents) - 1)
     for item in contents:
         if item == "[0]temp":
-            i += 1
             continue
         id = re.search('\[(\d+)\].+', item)[1]
         sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}%";'
