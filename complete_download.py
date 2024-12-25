@@ -872,6 +872,9 @@ def delete():
     i = 1
     length = str(len(contents))
     for item in contents:
+        if item == "[0]temp":
+            i += 1
+            continue
         id = re.search('\[(\d+)\].+', item)[1]
         sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}%";'
         c.execute(sqlstr)
