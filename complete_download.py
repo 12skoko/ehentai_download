@@ -771,7 +771,7 @@ def delete():
     #     taskid = task['gid']
     #     file_name = os.path.basename(task['files'][0]['path'])
     #     id = re.search('\[(\d+)\].+', file_name)[1]
-    #     sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}%";'
+    #     sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}/%";'
     #     c.execute(sqlstr)
     #     res = c.fetchall()
     #     if res:
@@ -819,7 +819,7 @@ def delete():
     length = str(len(contents))
     for item in contents:
         id = re.search('\[(\d+)\].+', item)[1]
-        sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}%";'
+        sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}/%";'
         c.execute(sqlstr)
         res = c.fetchall()
         if res:
@@ -836,7 +836,7 @@ def delete():
     length = str(len(contents))
     for item in contents:
         id = re.search('.+\[(\d+)\]', item)[1]
-        sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}%";'
+        sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}/%";'
         c.execute(sqlstr)
         res = c.fetchall()
         if res:
@@ -856,7 +856,7 @@ def delete():
     length = str(len(contents))
     for item in contents:
         id = re.search('\[(\d+)\].+', item)[1]
-        sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}%";'
+        sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}/%";'
         c.execute(sqlstr)
         res = c.fetchall()
         if res:
@@ -872,10 +872,10 @@ def delete():
     i = 1
     length = str(len(contents) - 1)
     for item in contents:
-        if item == "[0]temp":
+        if item == '[0]temp':
             continue
         id = re.search('\[(\d+)\].+', item)[1]
-        sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}%";'
+        sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}/%";'
         c.execute(sqlstr)
         res = c.fetchall()
         if res:
@@ -898,7 +898,7 @@ def delete():
     #         id = re.search('\[(\d+)\].+', item)[1]
     #     except:
     #         continue
-    #     sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}%";'
+    #     sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}/%";'
     #     c.execute(sqlstr)
     #     res = c.fetchall()
     #     if res:
