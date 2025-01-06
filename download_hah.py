@@ -170,7 +170,7 @@ def parse_file_size(size_str):
     return size * units[unit]
 
 
-def download_file(url, filename, download_path, retries=3, min_speed=100, check_interval=5):
+def download_file(url, filename, download_path, retries=3, min_speed=config.direct_download_min_speed, check_interval=5):
     total, used, free = shutil.disk_usage(download_path)
     if free < 3221225472:
         print('空间不足3GB，中断下载')
