@@ -30,22 +30,33 @@ class Gen_sqlstr():
 
     def post_hah_download_success(self, remark, id):
         if self.run_mode == "main":
-            sqlstr = 'UPDATE manga SET autostate = 7 ,remark="%s" WHERE id = "%s"' % (remark, id)
+            sqlstr = 'UPDATE manga SET autostate = 7, remark="%s" WHERE id = "%s"' % (remark, id)
         elif self.run_mode == "old":
-            sqlstr = 'UPDATE manga SET state = 9 ,remark="%s" WHERE id = "%s"' % (remark, id)
+            sqlstr = 'UPDATE manga SET state = 9, remark="%s" WHERE id = "%s"' % (remark, id)
         elif self.run_mode == "special":
-            sqlstr = 'UPDATE manga SET state = 9 ,remark="%s" WHERE id = "%s"' % (remark, id)
+            sqlstr = 'UPDATE manga SET state = 9, remark="%s" WHERE id = "%s"' % (remark, id)
         else:
             raise "unkown run_mode"
         return sqlstr
 
     def direct_download_success(self, filename, id):
         if self.run_mode == "main":
-            sqlstr = 'UPDATE manga SET autostate = 11 ,filename="%s" WHERE id = "%s"' % (filename, id)
+            sqlstr = 'UPDATE manga SET autostate = 11, filename="%s" WHERE id = "%s"' % (filename, id)
         elif self.run_mode == "old":
-            sqlstr = 'UPDATE manga SET state = 11 ,filename="%s" WHERE id = "%s"' % (filename, id)
+            sqlstr = 'UPDATE manga SET state = 11, filename="%s" WHERE id = "%s"' % (filename, id)
         elif self.run_mode == "special":
-            sqlstr = 'UPDATE manga SET state = 11 ,filename="%s" WHERE id = "%s"' % (filename, id)
+            sqlstr = 'UPDATE manga SET state = 11, filename="%s" WHERE id = "%s"' % (filename, id)
+        else:
+            raise "unkown run_mode"
+        return sqlstr
+
+    def filename_too_long(self, filename, id):
+        if self.run_mode == "main":
+            sqlstr = 'UPDATE manga SET autostate = -3, remark="filename too long: %s"  WHERE id = "%s"' % (filename, id)
+        elif self.run_mode == "old":
+            sqlstr = 'UPDATE manga SET state = -3, remark="filename too long: %s"  WHERE id = "%s"' % (filename, id)
+        elif self.run_mode == "special":
+            sqlstr = 'UPDATE manga SET state = -3, remark="filename too long: %s"  WHERE id = "%s"' % (filename, id)
         else:
             raise "unkown run_mode"
         return sqlstr
@@ -107,6 +118,14 @@ def getRealname(name):
             m -= 1
     realname = name[l:r]
     return realname
+
+
+def is_filename_too_long(filename, max_bytes=255, encoding="utf-8"):
+    try:
+        encoded_length = len(filename.encode(encoding))
+        return encoded_length > max_bytes
+    except UnicodeEncodeError:
+        return True
 
 
 def parseinfo(html):
@@ -414,13 +433,19 @@ def download_hah(run_mode, download_mode):
                 zipname = config.too_long_name_list[idname]
             else:
                 zipname = '[' + manga[0].split('/')[0] + ']' + re.sub(r'[\\/*?:"<>|]', '_', name) + '.zip'
-            print(downlink)
-            print(zipname)
-            # download_aria2(downlink, zipname)
-            download_file(downlink, zipname, config.direct_download_path)
-            sqlstr = gen_sqlstr.direct_download_success(zipname, manga[0])
-            c.execute(sqlstr)
-            conn.commit()
+            if is_filename_too_long(zipname):
+                print('File name too long: '+zipname)
+                sqlstr = gen_sqlstr.filename_too_long(zipname, manga[0])
+                c.execute(sqlstr)
+                conn.commit()
+            else:
+                print(downlink)
+                print(zipname)
+                # download_aria2(downlink, zipname)
+                download_file(downlink, zipname, config.direct_download_path)
+                sqlstr = gen_sqlstr.direct_download_success(zipname, manga[0])
+                c.execute(sqlstr)
+                conn.commit()
 
         if run_mode == "main":
             if info[13] != 'None':
