@@ -15,6 +15,7 @@ import html
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 import shutil
 import hashlib
+import json
 
 
 class Gen_sqlstr():
@@ -312,11 +313,10 @@ def api_upload(manga, directorypath):
     else:
         errorlog = str(response.status_code) + ' ' + response.text.replace('"', "'")
         sqlstr = 'UPDATE manga SET autostate = -5, remark="%s|%s" WHERE id = "%s"' % (errorlog, file_path, manga[0])
-        print(sqlstr)
         c.execute(sqlstr)
         conn.commit()
         print("上传失败，", manga[0], manga[1])
-        print("状态码: ", response.status_code, "错误信息: ", response.text)
+        print("状态码:", response.status_code, "错误信息:", response.text)
 
 
 def main_upload(manga, directorypath, raragiCookie):
@@ -523,7 +523,7 @@ def DeleteOutdate():
     res = c.fetchall()
     for i in res:
         searchurl = config.raragi_url + '/api/search?filter=' + i[0]
-        res1 = eval(requests.get(searchurl, headers=config.raragi_auth).text)
+        res1 = json.loads(requests.get(searchurl, headers=config.raragi_auth).text)
         if res1["recordsFiltered"] == 1 and res1["data"] != []:
             print('deleted_outdate:', i[0], i[1])
             id = res1['data'][0]['arcid']
