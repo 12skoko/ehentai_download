@@ -532,7 +532,7 @@ def DeleteOutdate():
             # print(deleteurl)
             res2 = requests.delete(deleteurl, headers=config.raragi_auth)
             # print(res2.text)
-            res3 = eval(requests.get(searchurl, headers=config.raragi_auth).text)
+            res3 = json.loads(requests.get(searchurl, headers=config.raragi_auth).text)
             if res3['data'] == []:
                 sqlstr = f'UPDATE manga SET remark="deleted" WHERE id="{i[0]}";'
                 c.execute(sqlstr)
