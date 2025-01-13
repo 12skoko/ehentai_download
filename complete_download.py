@@ -14,6 +14,7 @@ import datetime
 import html
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 import shutil
+import hashlib
 
 
 class Gen_sqlstr():
@@ -269,7 +270,54 @@ def parseinfo(html):
     return name, romaname, category, uploader, postedtime, language, estimatedsize, pages, favorited, rating_count, rating, tag, downloadlink, parent
 
 
-def main_upload(manga, directorypath):
+def calculate_sha1(file_path):
+    sha1 = hashlib.sha1()
+    with open(file_path, 'rb') as f:
+        while chunk := f.read(8192):
+            sha1.update(chunk)
+    return sha1.hexdigest()
+
+
+def api_upload(manga, directorypath):
+    print(manga[0], manga[1])
+    sqlstr = 'SELECT * FROM mangainfo WHERE id="%s";' % (manga[0])
+    c.execute(sqlstr)
+    info = c.fetchall()[0]
+    # print(info)
+    file_path = os.path.join(directorypath, manga[15])
+    file_path = os.path.normpath(file_path).replace('\\', '/')
+    print(file_path)
+    file_checksum = calculate_sha1(file_path)
+
+    date_added = int(time.time())
+    tagstr = f'romaname:{info[2]},source:{info[5]},category:{info[6]},uploader:{info[7]},postedtime:{info[8]},language:{info[9]},pages:{info[11]},favorited:{info[12]},ratingcount:{info[13]},rating:{info[14]},updatetime:{info[15]},date_added:{date_added}'
+    tagstr = tagstr + ',' + info[18] + ',' + info[17]
+
+    data = {
+        'title': info[1],
+        'tags': tagstr,
+        'file_checksum': file_checksum,
+    }
+
+    with open(file_path, 'rb') as f:
+        files = {'file': (file_path, f, "application/zip")}
+        response = requests.put(config.raragi_url + '/api/archives/upload', data=data, files=files, headers=config.raragi_auth)
+
+    if response.status_code == 200:
+        arcid = response.json()['id']
+        sqlstr = f'UPDATE manga SET state = 0, arcid = "{arcid}" WHERE id = "{manga[0]}"'
+        c.execute(sqlstr)
+        conn.commit()
+        print('Upload success')
+    else:
+        sqlstr = 'UPDATE manga SET autostate = -5, remark="%s|%s" WHERE id = "%s"' % (str(response.status_code) + response.text, file_path, manga[0])
+        c.execute(sqlstr)
+        conn.commit()
+        print("上传失败，", manga[0], manga[1])
+        print("状态码: ", response.status_code, "错误信息: ", response.text)
+
+
+def main_upload(manga, directorypath, raragiCookie):
     print(manga[0], manga[1])
     sqlstr = 'SELECT * FROM mangainfo WHERE id="%s";' % (manga[0])
     c.execute(sqlstr)
@@ -334,7 +382,7 @@ def main_upload(manga, directorypath):
     conn.commit()
 
 
-def old_upload(manga, directorypath):
+def old_upload(manga, directorypath, raragiCookie):
     print(manga[0], manga[1])
     sqlstr = 'SELECT * FROM mangainfo WHERE id="%s";' % (manga[0])
     c.execute(sqlstr)
@@ -682,17 +730,10 @@ def uploadall(run_mode):
     for manga in mangaList:
         print('torrent:' + str(i) + '/' + length)
         if manga[12] == 'compressed':
-            if run_mode == "main":
-                main_upload(manga, config.torrent_zip_path)
-            else:
-                old_upload(manga, config.torrent_zip_path)
+            api_upload(manga, config.torrent_zip_path)
         else:
-            if run_mode == "main":
-                main_upload(manga, os.path.join(config.torrent_download_path, manga[0].split('/')[0]))
-            else:
-                old_upload(manga, os.path.join(config.torrent_download_path, manga[0].split('/')[0]))
+            api_upload(manga, os.path.join(config.torrent_download_path, manga[0].split('/')[0]))
         i += 1
-        print('upload success')
         time.sleep(2)
 
     sqlstr = gen_sqlstr.uploadall_hah()
@@ -702,12 +743,8 @@ def uploadall(run_mode):
     i = 1
     for manga in mangaList:
         print('hah:' + str(i) + '/' + length)
-        if run_mode == "main":
-            main_upload(manga, config.hah_zip_path)
-        else:
-            old_upload(manga, config.hah_zip_path)
+        api_upload(manga, config.hah_zip_path)
         i += 1
-        print('upload success')
         time.sleep(2)
 
     sqlstr = gen_sqlstr.uploadall_direct()
@@ -717,15 +754,11 @@ def uploadall(run_mode):
     i = 1
     for manga in mangaList:
         print('direct:' + str(i) + '/' + length)
-        if run_mode == "main":
-            main_upload(manga, config.direct_download_path)
-        else:
-            old_upload(manga, config.direct_download_path)
+        api_upload(manga, config.direct_download_path)
         i += 1
-        print('upload success')
         time.sleep(2)
 
-    requests.post(config.raragi_url + '/api/regen_thumbs?force=0', cookies=raragiCookie)
+    requests.post(config.raragi_url + '/api/regen_thumbs?force=0', headers=config.raragi_auth)
 
 
 def delete():
@@ -935,9 +968,9 @@ if __name__ == "__main__":
 
     gen_sqlstr = Gen_sqlstr(run_mode)
 
-    req = requests.post(url=config.raragi_url + "/login", data={'password': config.raragi_password})
-    cook = req.headers['Set-Cookie'].split("=")
-    raragiCookie = {cook[0]: cook[1]}
+    # req = requests.post(url=config.raragi_url + "/login", data={'password': config.raragi_password})
+    # cook = req.headers['Set-Cookie'].split("=")
+    # raragiCookie = {cook[0]: cook[1]}
 
     conn = config.createDBconn()
     c = conn.cursor()
@@ -969,11 +1002,12 @@ if __name__ == "__main__":
             collectTorrent(run_mode)
             uploadall(run_mode)
             delete()
+
             conn.close()
             print('done')
             time.sleep(args.interval)
             conn = config.createDBconn()
             c = conn.cursor()
-            req = requests.post(url=config.raragi_url + "/login", data={'password': config.raragi_password})
-            cook = req.headers['Set-Cookie'].split("=")
-            raragiCookie = {cook[0]: cook[1]}
+            # req = requests.post(url=config.raragi_url + "/login", data={'password': config.raragi_password})
+            # cook = req.headers['Set-Cookie'].split("=")
+            # raragiCookie = {cook[0]: cook[1]}
