@@ -311,6 +311,7 @@ def api_upload(manga, directorypath):
         print('Upload success')
     else:
         sqlstr = 'UPDATE manga SET autostate = -5, remark="%s|%s" WHERE id = "%s"' % (str(response.status_code) + response.text, file_path, manga[0])
+        print(sqlstr)
         c.execute(sqlstr)
         conn.commit()
         print("上传失败，", manga[0], manga[1])
