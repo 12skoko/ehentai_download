@@ -138,38 +138,9 @@ se = requests.session()
 conn = config.createDBconn()
 c = conn.cursor()
 
-artist = [
-    # 'tamano kedama',
-    # 'rico',
-    # 'mutou mato',
-    # 'kunisaki kei',
-    # 'yukiu con',
-    # 'usashiro mani',
-    # 'ronna',
-    # 'petenshi',
-    # 'fujisaka lyric',
-    # 'nogiwa kaede',
-    # 'yuizaki kazuya',
-    # 'ginyou haru',
-    # 'kiira',
-    # 'azuma yuki',
-    # 'okada kou'
-    # 'muk',
-    # 'fummy',
-    # 'shouji ayumu',
-    'pirason',
-    'shimanto shisakugata',
-    'atage',
-    'airandou',
-    'maeshima ryou',
-    'kuromotokun',
-    'healthyman',
-    'mdo-h',
-    'henrybird'
-]
 
-for art in artist:
-    url = 'https://exhentai.org/tag/artist:' + art.replace(' ', '+') + '?f_sft=on&f_sfu=on'
+for art in config.special_collect_tagist:
+    url = 'https://exhentai.org/tag/' + art.replace(' ', '+') + '?f_sft=on&f_sfu=on'
     print(url)
     collect(url, 0, art)
 
