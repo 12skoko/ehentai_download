@@ -3,6 +3,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 import subprocess
 import smtplib
 from email.mime.text import MIMEText
+import re
 import config
 
 
@@ -28,8 +29,13 @@ def run_py(py_cmd, mark_name):
                                     stderr=subprocess.PIPE, universal_newlines=True)
             # print(result.stdout)
         except subprocess.CalledProcessError as e:
+            tqdm_pattern = re.compile(r'\s*\d+%\|.*?\| \d+.?\d+[kMG]/\d+.?\d+[kMG] \[\d+:\d+:?\d+?<\d+:\d+:?\d+?, \d+.\d+?[kM]?iB/s]\s*')
+            tqdm_pattern2 = re.compile(r'\s*0%\|\s*\| 0.00/\d+.?\d+[kMG] \[00:00<\?, \?iB/s]')
+            error_content = e.stderr
+            error_content = re.sub(tqdm_pattern, "", error_content)
+            error_content = re.sub(tqdm_pattern2, "", error_content)
             print(str(run_cmd))
-            f.write('\n\n\n' + str(run_cmd) + '\n\n\n' + e.stderr)
+            f.write('\n\n\n' + str(run_cmd) + '\n\n\n' + error_content)
             f.close()
             py_name = py_cmd.split(' ')[0]
             subject = "EH download error"
