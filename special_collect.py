@@ -144,4 +144,8 @@ for art in config.special_collect_tagist:
     print(url)
     collect(url, 0, art)
 
+for url in config.special_collect_url:
+    print(url)
+    collect(url, 0, url.split('/')[-1])
+
 print('done')
