@@ -198,6 +198,17 @@ class Gen_sqlstr():
             raise "unkown run_mode"
         return sqlstr
 
+    def apiupload_error(self, errorlog, file_path, id):
+        if self.run_mode == "main":
+            sqlstr = 'UPDATE manga SET autostate = -5, remark="%s|%s" WHERE id = "%s"' % (errorlog, file_path, id)
+        elif self.run_mode == "old":
+            sqlstr = 'UPDATE manga SET state = -4, remark="%s|%s" WHERE id = "%s"' % (errorlog, file_path, id)
+        elif self.run_mode == "special":
+            sqlstr = 'UPDATE manga SET state = -4, remark="%s|%s" WHERE id = "%s"' % (errorlog, file_path, id)
+        else:
+            raise "unkown run_mode"
+        return sqlstr
+
 
 def getRealname(name):
     length = len(name)
@@ -288,6 +299,13 @@ def api_upload(manga, directorypath):
     file_path = os.path.join(directorypath, manga[15])
     file_path = os.path.normpath(file_path).replace('\\', '/')
     print(file_path)
+    size = os.path.getsize(file_path)
+    if size > 1610612736:
+        sqlstr = gen_sqlstr.apiupload_error("文件过大", file_path, manga[0])
+        c.execute(sqlstr)
+        conn.commit()
+        print("上传失败，文件过大，", manga[0], manga[1])
+        return
     file_checksum = calculate_sha1(file_path)
 
     date_added = int(time.time())
@@ -312,7 +330,7 @@ def api_upload(manga, directorypath):
         print('Upload success')
     else:
         errorlog = str(response.status_code) + ' ' + response.text.replace('"', "'")
-        sqlstr = 'UPDATE manga SET autostate = -5, remark="%s|%s" WHERE id = "%s"' % (errorlog, file_path, manga[0])
+        sqlstr = gen_sqlstr.apiupload_error(errorlog, file_path, manga[0])
         c.execute(sqlstr)
         conn.commit()
         print("上传失败，", manga[0], manga[1])
