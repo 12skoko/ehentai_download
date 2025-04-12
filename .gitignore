@@ -1,8 +1,11 @@
+.idea/
+
 log/
 lozip/
 tempfile/
-.idea/
 test/
-config.py
-old/old_config.py
 old/
+old2/
+
+config.py
+config_picacg.py
