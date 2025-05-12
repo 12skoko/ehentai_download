@@ -1,3 +1,4 @@
+import argparse
 import requests
 import re
 import time
@@ -283,18 +284,26 @@ def updateTagTranslation():
         raise Exception(f"下载失败: {e}") from e
 
 
-conn = config.createDBconn()
-c = conn.cursor()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--updatedb", action="store_true")
+    args = parser.parse_args()
 
-sqlstr = 'SELECT id FROM manga WHERE autostate!=-1 ORDER BY timestamp DESC LIMIT 1;'
-c.execute(sqlstr)
-pre = int(c.fetchall()[0][0].split('/')[0])
+    if args.updatedb == True:
+        updateTagTranslation()
+    else:
+        conn = config.createDBconn()
+        c = conn.cursor()
 
-se = requests.session()
-for collect_url in config.collect_url_list:
-    collect(collect_url, pre, config.collect_url_list[collect_url])
+        sqlstr = 'SELECT id FROM manga WHERE autostate!=-1 ORDER BY timestamp DESC LIMIT 1;'
+        c.execute(sqlstr)
+        pre = int(c.fetchall()[0][0].split('/')[0])
 
-screenall()
+        se = requests.session()
+        for collect_url in config.collect_url_list:
+            collect(collect_url, pre, config.collect_url_list[collect_url])
 
-updateTagTranslation()
-print('done')
+        screenall()
+
+        updateTagTranslation()
+        print('done')
