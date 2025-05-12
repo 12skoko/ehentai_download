@@ -566,6 +566,22 @@ def DeleteOutdate():
             conn.commit()
 
 
+def handleConflicts():
+    print('-------------------DeleteOutdate-------------------')
+    sqlstr = 'SELECT * FROM manga WHERE autostate = 12;'
+    c.execute(sqlstr)
+    res = c.fetchall()
+    for i in res:
+        filename = '[' + i[0].split('/')[0] + ']' + i[15]
+        old_name = os.path.join(config.torrent_download_path, i[0].split('/')[0], i[15])
+        new_name = os.path.join(config.torrent_download_path, i[0].split('/')[0], filename)
+        os.rename(old_name, new_name)
+        sqlstr = f'UPDATE manga SET filename={filename}, autostate = 8 WHERE id="{i[0]}";'
+        print('handleConflicts:', filename)
+        c.execute(sqlstr)
+        conn.commit()
+
+
 def completeTorrent():
     print('-------------------completeTorrent-------------------')
     torrents = qbt_client.torrents_info()
@@ -1010,6 +1026,7 @@ if __name__ == "__main__":
         compressHah()
         collectTorrent(run_mode)
         DeleteOutdate()
+        handleConflicts()
         uploadall(run_mode)
         delete()
         print('done')
