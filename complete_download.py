@@ -278,7 +278,7 @@ def parseinfo(html):
     onclick_value = soup.find('a', href="#", string='Archive Download').get('onclick')
     # print(a_element)
     # onclick_value = a_element
-    downloadlink = re.search("return popUp\('(https://exhentai\.org/archiver\.php.*?)',480,320\)", onclick_value)[1]
+    downloadlink = re.search(r"return popUp\('(https://exhentai\.org/archiver\.php.*?)',480,320\)", onclick_value)[1]
     return name, romaname, category, uploader, postedtime, language, estimatedsize, pages, favorited, rating_count, rating, tag, downloadlink, parent
 
 
@@ -887,7 +887,7 @@ def delete():
     i = 1
     length = str(len(contents))
     for item in contents:
-        id = re.search('\[(\d+)\].+', item)[1]
+        id = re.search(r'\[(\d+)\].+', item)[1]
         sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}/%";'
         c.execute(sqlstr)
         res = c.fetchall()
@@ -904,7 +904,7 @@ def delete():
     i = 1
     length = str(len(contents))
     for item in contents:
-        id = re.search('.+\[(\d+)\]', item)[1]
+        id = re.search(r'.+\[(\d+)\]', item)[1]
         sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}/%";'
         c.execute(sqlstr)
         res = c.fetchall()
@@ -924,7 +924,7 @@ def delete():
     i = 1
     length = str(len(contents))
     for item in contents:
-        id = re.search('\[(\d+)\].+', item)[1]
+        id = re.search(r'\[(\d+)\].+', item)[1]
         sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}/%";'
         c.execute(sqlstr)
         res = c.fetchall()
@@ -943,7 +943,7 @@ def delete():
     for item in contents:
         if item == '[0]temp':
             continue
-        id = re.search('\[(\d+)\].+', item)[1]
+        id = re.search(r'\[(\d+)\].+', item)[1]
         sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}/%";'
         c.execute(sqlstr)
         res = c.fetchall()
@@ -964,7 +964,7 @@ def delete():
     # length = str(len(contents))
     # for item in contents:
     #     try:
-    #         id = re.search('\[(\d+)\].+', item)[1]
+    #         id = re.search(r'\[(\d+)\].+', item)[1]
     #     except:
     #         continue
     #     sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}/%";'
