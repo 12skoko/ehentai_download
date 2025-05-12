@@ -5,6 +5,7 @@ import random
 import config
 import datetime
 import html
+import os
 
 
 def getRealname(name):
@@ -161,7 +162,7 @@ def collect(baseurl, end, mark):
             else:
                 autostate = '-1'
 
-            languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese','ukrainian']
+            languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese', 'ukrainian']
             if 'translated' in tag and 'chinese' not in tag:
                 if any(lang in tag for lang in languages):
                     continue
@@ -251,6 +252,37 @@ def screenall():
                 conn.commit()
 
 
+def updateTagTranslation():
+    url = "https://github.com/EhTagTranslation/Database/releases/latest/download/db.text.json"
+    target_file = "db.text.json"
+    temp_file = target_file + ".tmp"  # 临时文件
+
+    try:
+        # 下载到临时文件
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+
+        # 流式写入临时文件
+        with open(temp_file, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:  # 过滤keep-alive chunks
+                    f.write(chunk)
+
+        # 下载验证完成，替换原文件
+        if os.path.exists(temp_file):
+            if os.path.exists(target_file):
+                os.replace(temp_file, target_file)
+            else:
+                os.rename(temp_file, target_file)
+        print(f"文件已更新：{target_file}")
+
+    except Exception as e:
+        # 清理临时文件
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        raise Exception(f"下载失败: {e}") from e
+
+
 conn = config.createDBconn()
 c = conn.cursor()
 
@@ -263,4 +295,6 @@ for collect_url in config.collect_url_list:
     collect(collect_url, pre, config.collect_url_list[collect_url])
 
 screenall()
+
+updateTagTranslation()
 print('done')

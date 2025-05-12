@@ -7,5 +7,6 @@ test/
 old/
 old2/
 
+db.text.json
 config.py
 config_picacg.py
