@@ -134,7 +134,7 @@ def download_torrent(run_mode):
         seeds = 0
         size = ''
         torrentLink = ''
-        re_torrent = """(?s)Posted:</span> <span>(.*?)</span></td>.*?Size:</span> (.*?)</td>.*?Seeds:</span> (\d+)</td>.*?Peers:</span> (\d+)</td>.*?Downloads:</span> (\d+)</td>.*?<a href=\"(.*?)\" onclick=\"document\.location='(.*?)'; return false\">"""
+        re_torrent = r"""(?s)Posted:</span> <span>(.*?)</span></td>.*?Size:</span> (.*?)</td>.*?Seeds:</span> (\d+)</td>.*?Peers:</span> (\d+)</td>.*?Downloads:</span> (\d+)</td>.*?<a href=\"(.*?)\" onclick=\"document\.location='(.*?)'; return false\">"""
         torrentList = re.findall(re_torrent, data)
         for torrent in torrentList:
             if int(torrent[2]) > 0:
