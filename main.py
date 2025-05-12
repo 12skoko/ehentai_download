@@ -5,6 +5,7 @@ import smtplib
 from email.mime.text import MIMEText
 import re
 import config
+import os
 
 
 def sendEmail(sender_email, email_auth, rec_email, subject, message):
@@ -21,7 +22,7 @@ def sendEmail(sender_email, email_auth, rec_email, subject, message):
 def run_py(py_cmd, mark_name):
     time = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
     print(mark_name + ':' + time)
-    output_file = f"./log/{mark_name}_{time}.txt"
+    output_file = os.path.join(config.logpath, f"{mark_name}_{time}.txt")
     with open(output_file, "a", encoding='utf-8') as f:
         try:
             run_cmd = [config.python_path] + py_cmd.split(' ')
