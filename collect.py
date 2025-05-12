@@ -260,7 +260,7 @@ def updateTagTranslation():
 
     try:
         # 下载到临时文件
-        response = requests.get(url, stream=True)
+        response = requests.get(url, stream=True, proxies=config.proxies1)
         response.raise_for_status()
 
         # 流式写入临时文件
