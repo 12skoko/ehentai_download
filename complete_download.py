@@ -300,7 +300,7 @@ def api_upload(manga, directorypath):
     file_path = os.path.normpath(file_path).replace('\\', '/')
     print(file_path)
     size = os.path.getsize(file_path)
-    if size > 3221225472:
+    if size > config.max_file_size:
         sqlstr = gen_sqlstr.apiupload_error("文件过大", file_path, manga[0])
         c.execute(sqlstr)
         conn.commit()
