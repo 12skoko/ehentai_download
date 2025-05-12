@@ -278,7 +278,7 @@ def parseinfo(html):
     onclick_value = soup.find('a', href="#", string='Archive Download').get('onclick')
     # print(a_element)
     # onclick_value = a_element
-    downloadlink = re.search("return popUp\('(https:\/\/exhentai\.org\/archiver\.php.*?)',480,320\)", onclick_value)[1]
+    downloadlink = re.search("return popUp\('(https://exhentai\.org/archiver\.php.*?)',480,320\)", onclick_value)[1]
     return name, romaname, category, uploader, postedtime, language, estimatedsize, pages, favorited, rating_count, rating, tag, downloadlink, parent
 
 
