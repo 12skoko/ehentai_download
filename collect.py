@@ -281,6 +281,7 @@ def updateTagTranslation():
         # 清理临时文件
         if os.path.exists(temp_file):
             os.remove(temp_file)
+        print(f"下载失败: {e}")
         raise Exception(f"下载失败: {e}") from e
 
 
@@ -305,5 +306,8 @@ if __name__ == "__main__":
 
         screenall()
 
-        updateTagTranslation()
+        try:
+            updateTagTranslation()
+        except:
+            print('更新标签数据库失败')
         print('done')
