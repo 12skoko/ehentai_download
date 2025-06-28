@@ -57,9 +57,12 @@ def tagParse(tagstr):
     return ','.join(tag)
 
 
-def collect(baseurl, end, mark):
+def collect(baseurl, start, end, mark):
+    if start != 0:
+        url = baseurl + "&next=" + str(start)
+    else:
+        url = baseurl
     dev = 0
-    url = baseurl
     nowPage = 0
     nextnum = 9999999999
     while (nextnum > end):
@@ -138,6 +141,6 @@ baseurl = 'https://exhentai.org/?f_cats=704&f_search=lolicon'
 
 start = input("start")
 
-collect(baseurl, start, baseurl.split('/')[-1])
+collect(baseurl, start, 0, baseurl.split('/')[-1])
 
 print('done')
