@@ -71,7 +71,7 @@ def collect(baseurl, start, end, mark):
         response = se.get(url, headers=config.header, cookies=config.cookies, proxies=proxy)
         data = response.text
         try:
-            re_next = r"<a id=\"dnext\" href=\"(.*?next=(\d+))\">Next"
+            re_next = """<a id=\"dnext\" href=\"(.*?next=(\d+))\">Next"""
             url_res = re.search(re_next, data)
             url = url_res[1].replace("amp;", "")
             nextnum = int(url_res[2])
@@ -80,7 +80,7 @@ def collect(baseurl, start, end, mark):
         except:
             nextnum = 0
 
-        re_info = r"<div class=\"cn ct.\" onclick=\".*?\">(.*?)</div>.*?<div onclick=\"popUp.*?\" id=\"postedpop_.+?\">(.*?)</div>.*?<div class=\"ir\" style=\"background-position:-?(\d+)px -?(\d+)px;opacity:1\"></div>.*?<div class=\"gldown\">(.*?)</div>.*?<a href=\"(https://exhentai.org/g/(.*?)/)\"><div class=\"glink\">(.*?)</div><div>(.*?)</div></a>.*?<div>(\d+) pages</div>"
+        re_info = """<div class=\"cn ct.\" onclick=\".*?\">(.*?)</div>.*?<div onclick=\"popUp.*?\" id=\"postedpop_.+?\">(.*?)</div>.*?<div class=\"ir\" style=\"background-position:-?(\d+)px -?(\d+)px;opacity:1\"></div>.*?<div class=\"gldown\">(.*?)</div>.*?<a href=\"(https://exhentai.org/g/(.*?)/)\"><div class=\"glink\">(.*?)</div><div>(.*?)</div></a>.*?<div>(\d+) pages</div>"""
         resList = re.findall(re_info, data)
         print('find ', len(resList))
         if len(resList) != 25 and nextnum != 0:
@@ -91,7 +91,7 @@ def collect(baseurl, start, end, mark):
             name = html.unescape(res[7]).replace('"', '""')
             link = res[5]
             try:
-                re_torrentLink = r"<a href=\"(https://exhentai\.org/gallerytorrents\.php\?gid=.*?&amp;t=.*?)\""
+                re_torrentLink = """<a href=\"(https://exhentai\.org/gallerytorrents\.php\?gid=.*?&amp;t=.*?)\""""
                 torrentLink = re.search(re_torrentLink, res[4])[1].replace("amp;", "")
             except:
                 torrentLink = ''
