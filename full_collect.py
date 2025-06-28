@@ -57,7 +57,7 @@ def tagParse(tagstr):
 
 
 def collect(baseurl, start, end, mark):
-    if start != 0:
+    if start != '0':
         url = baseurl + "&next=" + str(start)
     else:
         url = baseurl
@@ -84,7 +84,7 @@ def collect(baseurl, start, end, mark):
         resList = re.findall(re_info, data)
         print('find ', len(resList))
         if len(resList) != 25 and nextnum != 0:
-            print(data)
+            # print(data)
             raise 're error'
         for res in resList:
             id = res[6]
