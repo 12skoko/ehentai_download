@@ -75,7 +75,7 @@ def collect(baseurl, start, end, mark):
             url_res = re.search(re_next, data)
             url = url_res[1].replace("amp;", "")
             nextnum = int(url_res[2])
-            with open('full_collect.txt', 'a', encoding='utf-8') as file:
+            with open('full_collect_log.txt', 'a', encoding='utf-8') as file:
                 file.write(str(nextnum) + '\n')
         except:
             nextnum = 0
