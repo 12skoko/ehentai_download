@@ -1,275 +1,102 @@
 import argparse
-import requests
-import re
-import time
-import random
+from sqlalchemy import create_engine, select, update, insert, MetaData, Table, desc
+from sqlalchemy.orm import sessionmaker
+from model import Manga
 import config
+import ehentai_utils
+import requests
+from bs4 import BeautifulSoup
 import datetime
-import html
+import time
+import re
+import random
 import os
 
 
-def getRealname(name):
-    length = len(name)
-    s = 0
-    m = 0
-    l = 0
-    r = length
-    for i in range(length):
-        ch = name[i]
-        if (s == 0 and m == 0) and (ch != '(' and ch != '[' and ch != ' '):
-            l = i
-            break
-        elif ch == '(':
-            s += 1
-        elif ch == '[':
-            m += 1
-        elif ch == ')':
-            s -= 1
-        elif ch == ']':
-            m -= 1
-    for i in range(length - 1, -1, -1):
-        ch = name[i]
-        if (s == 0 and m == 0) and (ch != ')' and ch != ']' and ch != ' '):
-            r = i + 1
-            break
-        elif ch == ')':
-            s += 1
-        elif ch == ']':
-            m += 1
-        elif ch == '(':
-            s -= 1
-        elif ch == '[':
-            m -= 1
-    realname = name[l:r]
-    return realname
-
-
 def getRandom():
-    sqlstr = 'SELECT id FROM random WHERE is_used=0 LIMIT 1;'
-    c.execute(sqlstr)
-    num = c.fetchall()[0][0]
-    sqlstr = 'UPDATE random SET is_used=1 WHERE id=' + str(num) + ';'
-    c.execute(sqlstr)
-    conn.commit()
-    return num
-
-
-def select(lists):
-    sorted_list = sorted(lists, key=lambda x: x[0], reverse=True)
-    return sorted_list[0][1]
-
-
-def screen(similarFlagList):
-    res = [0] * len(similarFlagList)
-    filterDict1 = {1: [], 2: [], 3: []}
-    for i in range(len(similarFlagList)):
-        similarFlag = similarFlagList[i]
-        filterDict1[similarFlag // 10].append((round(similarFlag - (similarFlag // 10) * 10, 12), i))
-    if filterDict1[3] != []:
-        filterDict2 = filterDict1[3]
-    elif filterDict1[2] != []:
-        filterDict2 = filterDict1[2]
-    else:
-        filterDict2 = filterDict1[1]
-    filterDict3 = {}
-    for i in filterDict2:
-        if int(i[0]) in filterDict3:
-            filterDict3[int(i[0])].append((round(i[0] - int(i[0]), 12), i[1]))
-        else:
-            filterDict3[int(i[0])] = [(round(i[0] - int(i[0]), 12), i[1])]
-    for i in filterDict3:
-        res[select(filterDict3[i])] = 1
-    return res
-
-
-def calRating(a, b):
-    rating = (5 - int(a) // 16) * 10
-    if b == '21':
-        rating -= 5
-    return rating
-
-
-def tagParse(tagstr):
-    re_tag = """>([a-z:]+?)<"""
-    tag = re.findall(re_tag, tagstr)
-    return ','.join(tag)
-
-
-def collect(baseurl, end, mark):
-    dev = 0
-    errorflag = 0
-    url = baseurl
-    nowPage = 0
-    nextnum = 9999999999
-    while (nextnum > end):
-        proxy = config.proxyPool[(datetime.datetime.now().hour + dev) % len(config.proxyPool)]
-        print(mark + ':' + str(nowPage))
-        print(url)
-        old_url = url
-        try:
-            response = se.get(url, headers=config.header, cookies=config.cookies, proxies=proxy)
-            data = response.text
-            re_next = r"""<a id=\"dnext\" href=\"(.*?next=(\d+))\">Next"""
-            url_res = re.search(re_next, data)
-            url = url_res[1].replace("amp;", "")
-            nextnum = int(url_res[2])
-        except:
-            print('error')
-            errorflag += 1
-            url = old_url
-            dev += 1
-            if errorflag >= len(config.proxyPool):
-                raise 'error'
-            else:
-                time.sleep(2)
-                continue
-
-        errorflag = 0
-        re_info = r"""<div class=\"cn ct.\" onclick=\".*?\">(.*?)</div>.*?<div onclick=\"popUp.*?\" id=\"postedpop_.+?\">(.*?)</div>.*?<div class=\"ir\" style=\"background-position:-?(\d+)px -?(\d+)px;opacity:1\"></div>.*?<div class=\"gldown\">(.*?)</div>.*?<a href=\"(https://exhentai.org/g/(.*?)/)\"><div class=\"glink\">(.*?)</div><div>(.*?)</div></a>.*?<div>(\d+) pages</div>"""
-        resList = re.findall(re_info, data)
-        print('find ', len(resList))
-        if len(resList) == 0:
-            raise 'error'
-        for res in resList:
-            id = res[6]
-            name = html.unescape(res[7]).replace('"', '""')
-            link = res[5]
-            try:
-                re_torrentLink = r"""<a href=\"(https://exhentai\.org/gallerytorrents\.php\?gid=.*?&amp;t=.*?)\""""
-                torrentLink = re.search(re_torrentLink, res[4])[1].replace("amp;", "")
-            except:
-                torrentLink = ''
-            timestr = res[1]
-            type = res[0]
-            tag = tagParse(res[8])
-            pages = res[9]
-            rating = calRating(res[2], res[3])
-            realname = getRealname(name)
-            timestamp = int(datetime.datetime.strptime(timestr, "%Y-%m-%d %H:%M").timestamp())
-            nowtimestamp = int(time.time())
-            exist = 0
-
-            sqlstr = f'SELECT * FROM manga where id="{id}";'
-            c.execute(sqlstr)
-            fatch = c.fetchall()
-            if fatch:
-                if fatch[0][16] != -1:
-                    continue
-                else:
-                    exist = 1
-            if nowtimestamp - timestamp > 259200:
-                autostate = '1'
-            else:
-                autostate = '-1'
-
-            languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese', 'ukrainian']
-            if 'translated' in tag and 'chinese' not in tag:
-                if any(lang in tag for lang in languages):
-                    continue
-
-            if exist == 0:
-                sqlstr = f'INSERT INTO manga (id,name,link,torrentlink,time,type,tag,pages,rating,autostate,realname,timestamp)values("{id}","{name}","{link}","{torrentLink}","{timestr}","{type}","{tag}",{pages},{rating},{autostate},"{realname}","{timestamp}");'
-            else:
-                sqlstr = f'UPDATE manga SET id="{id}",name="{name}",link="{link}",torrentlink="{torrentLink}",time="{timestr}",type="{type}",tag="{tag}",pages={pages},rating={rating},autostate={autostate},realname="{realname}",timestamp="{timestamp}" WHERE id="{id}";'
-
-            print(sqlstr)
-            c.execute(sqlstr)
-            conn.commit()
-
-        nowPage += 1
-        time.sleep(5 + random.randint(0, 10))
+    metadata = MetaData()
+    random_table = Table('random', metadata, autoload_with=engine)
+    with engine.begin() as conn:
+        select_stmt = (
+            select(random_table.c.id)
+            .where(random_table.c.is_used == 0)  # type: ignore
+            .limit(1)
+        )
+        result = conn.execute(select_stmt)
+        num = result.scalar()
+        if num is None:
+            raise ValueError("No available unused random IDs")
+        update_stmt = (
+            update(random_table)
+            .where(random_table.c.id == num)  # type: ignore
+            .values(is_used=1)
+        )
+        conn.execute(update_stmt)
+        return num
 
 
 def screenall():
-    sqlstr = 'SELECT * FROM manga WHERE autostate = 1;'
-    c.execute(sqlstr)
-    undetermined_all_book = c.fetchall()
+    with SqlSession() as sql_session:
+        undetermined_all_book = sql_session.query(Manga).filter(Manga.autostate == 1).all()  # type: ignore
 
-    count = {}
-    co = 0
-    length = str(len(undetermined_all_book))
+        co = 0
+        length = str(len(undetermined_all_book))
 
-    for manga in undetermined_all_book:
-        co += 1
-        print(str(co) + '/' + length)
-
-        similarList = []
-        realname = manga[13]
-        flag = 0
-        sqlstr = 'SELECT * FROM manga;'
-        c.execute(sqlstr)
-        all_book = c.fetchall()
-        for manga2 in all_book:
-            if realname == manga2[13]:
-                flag += 1
-                similarList.append(manga2)
-        if flag in count:
-            count[flag] += 1
-        else:
-            count[flag] = 1
-        if flag == 1:
-            sqlstr = 'UPDATE manga SET autostate = 2 WHERE id="' + manga[0] + '";'
-            print(manga[1], sqlstr)
-            c.execute(sqlstr)
-            conn.commit()
-        else:
-            similarFlagList = []
-            for similar in similarList:
-                score = similar[8] * 0.01 + similar[10] * 0.000000000001
-                if "無修正" in similar[1] or "无修正" in similar[1]:
-                    if 'chinese' in similar[6]:
-                        if similar[8] > 30:
-                            similarFlagList.append(31 + score)
+        for manga in undetermined_all_book:
+            co += 1
+            print(str(co) + '/' + length)
+            flag = 0
+            similarList = sql_session.query(Manga).filter(Manga.realname == manga.realname).all()  # type: ignore
+            if flag == 1:
+                manga.autostate = 2
+                sql_session.commit()
+            else:
+                similarFlagList = []
+                for similar in similarList:
+                    score = similar.rating * 0.01 + similar.timestamp * 0.000000000001
+                    if "無修正" in similar.name or "无修正" in similar.name:
+                        if 'chinese' in similar.tag:
+                            if similar.rating > 30:
+                                similarFlagList.append(31 + score)
+                            else:
+                                similarFlagList.append(22 + score)
                         else:
-                            similarFlagList.append(22 + score)
+                            similarFlagList.append(21 + score)
                     else:
-                        similarFlagList.append(21 + score)
-                else:
-                    if 'chinese' in similar[6]:
-                        if similar[8] > 30:
-                            similarFlagList.append(23 + score)
+                        if 'chinese' in similar.tag:
+                            if similar.rating > 30:
+                                similarFlagList.append(23 + score)
+                            else:
+                                similarFlagList.append(12 + score)
                         else:
-                            similarFlagList.append(12 + score)
-                    else:
-                        similarFlagList.append(11 + score)
-            res = screen(similarFlagList)
-            random_num = getRandom()
-            for i in range(len(res)):
-                sqlstr = f'SELECT * FROM manga WHERE (autostate!=1 OR state is NOT NULL) and id="{similarList[i][0]}";'
-                c.execute(sqlstr)
-                restemp = c.fetchall()
-                if restemp:
-                    sqlstr = 'UPDATE manga SET relatetation = %s WHERE id= "%s";' % (str(random_num), similarList[i][0])
-                else:
-                    if res[i] == 1:
-                        sqlstr = 'UPDATE manga SET autostate = 2 , relatetation = %s WHERE id= "%s";' % (
-                            str(random_num), similarList[i][0])
-                    else:
-                        sqlstr = 'UPDATE manga SET autostate = 3 , relatetation = %s WHERE id= "%s";' % (
-                            str(random_num), similarList[i][0])
-                print(sqlstr)
-                c.execute(sqlstr)
-                conn.commit()
+                            similarFlagList.append(11 + score)
+
+                res = ehentai_utils.screen(similarFlagList)
+                random_num = getRandom()
+                for i in range(len(res)):
+                    if not (similarList[i].autostate != 1 or similarList[i].state is not None):
+                        if res[i] == 1:
+                            similarList[i].autostate = 2
+                        else:
+                            similarList[i].autostate = 3
+                    similarList[i].relatetation = str(random_num)
+                    sql_session.commit()
 
 
 def updateTagTranslation():
     url = "https://github.com/EhTagTranslation/Database/releases/latest/download/db.text.json"
-    target_file = "db.text.json"
-    temp_file = target_file + ".tmp"  # 临时文件
+    target_file = "./db.text.json"
+    temp_file = target_file + ".tmp"
 
     try:
-        # 下载到临时文件
         response = requests.get(url, stream=True, proxies=config.proxies1)
         response.raise_for_status()
 
-        # 流式写入临时文件
         with open(temp_file, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
-                if chunk:  # 过滤keep-alive chunks
+                if chunk:
                     f.write(chunk)
 
-        # 下载验证完成，替换原文件
         if os.path.exists(temp_file):
             if os.path.exists(target_file):
                 os.replace(temp_file, target_file)
@@ -278,11 +105,82 @@ def updateTagTranslation():
         print(f"文件已更新：{target_file}")
 
     except Exception as e:
-        # 清理临时文件
         if os.path.exists(temp_file):
             os.remove(temp_file)
         print(f"下载失败: {e}")
-        raise Exception(f"下载失败: {e}") from e
+
+
+def collect(base_url, start, end, mark):
+    se = requests.session()
+    if start != 0:
+        url = base_url + "&next=" + str(start)
+    else:
+        url = base_url
+    dev = 0
+    error_flag = 0
+    now_page = 0
+    next_num = 9999999999
+    while next_num > end:
+        proxy = config.proxy_pool[(datetime.datetime.now().hour + dev) % len(config.proxy_pool)]
+        print(mark + ':' + str(now_page))
+        print(url)
+        old_url = url
+        try:
+            response = se.get(url, headers=config.header, cookies=config.cookies_non_donation, proxies=proxy)
+            data_soup = BeautifulSoup(response.text, 'lxml')
+
+            unext_a_soup = data_soup.find("a", id="unext")
+            if unext_a_soup is None:
+                unext_span_soup = data_soup.find("span", class_="unext")
+                if unext_span_soup is None:
+                    # print(response.text)
+                    raise "request error"
+                else:
+                    next_num = 0
+            url = unext_a_soup.get("href")
+            next_num = int(url.split("next=")[1].split("&")[0])
+        except:
+            print('request error')
+            error_flag += 1
+            url = old_url
+            dev += 1
+            if error_flag >= len(config.proxy_pool):
+                raise 'request error'
+            else:
+                time.sleep(2)
+                continue
+
+        error_flag = 0
+
+        total_info_soup = data_soup.find("table", class_="itg glte")
+        list_tr_soup = total_info_soup.find_all("tr", recursive=False)
+        print('find ', len(list_tr_soup))
+        if len(list_tr_soup) != 25 and next_num != 0:
+            raise 'find metadata error'
+
+        for tr_soup in list_tr_soup:
+            manga_metadata = ehentai_utils.parse_metadata(tr_soup)
+
+            languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese', 'ukrainian']
+            if 'translated' in manga_metadata.tag and 'chinese' not in manga_metadata.tag:
+                if any(lang in manga_metadata.tag for lang in languages):
+                    continue
+
+                nowtimestamp = int(time.time())
+                manga_timestamp = int(datetime.datetime.strptime(manga_metadata.postedtime, "%Y-%m-%d %H:%M").timestamp())
+                if nowtimestamp - manga_timestamp > 259200:
+                    manga_metadata.autostate = '1'
+                else:
+                    manga_metadata.autostate = '-1'
+
+            with SqlSession() as sql_session:
+                sql_session.merge(manga_metadata)
+                sql_session.commit()
+
+        print("Insert success")
+
+        now_page += 1
+        time.sleep(5 + random.randint(0, 10))
 
 
 if __name__ == "__main__":
@@ -290,19 +188,29 @@ if __name__ == "__main__":
     parser.add_argument("--updatedb", action="store_true")
     args = parser.parse_args()
 
+    engine = create_engine(config.sql_engine)
+    SqlSession = sessionmaker(bind=engine)
+
     if args.updatedb == True:
         updateTagTranslation()
     else:
         conn = config.createDBconn()
         c = conn.cursor()
 
-        sqlstr = 'SELECT id FROM manga WHERE autostate!=-1 ORDER BY timestamp DESC LIMIT 1;'
-        c.execute(sqlstr)
-        pre = int(c.fetchall()[0][0].split('/')[0])
+        with engine.begin() as conn:
+            stmt = (
+                select(Manga.manga_id)
+                .where(Manga.autostate != -1)  # type: ignore
+                .order_by(desc(Manga.postedtimestamp))
+                .limit(1)
+            )
+            result = conn.execute(stmt)
+            latest_id = result.scalar()
 
-        se = requests.session()
+        pre = int(latest_id.split('/')[0])
+
         for collect_url in config.collect_url_list:
-            collect(collect_url, pre, config.collect_url_list[collect_url])
+            collect(collect_url, 0, pre, config.collect_url_list[collect_url])
 
         screenall()
 

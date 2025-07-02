@@ -23,8 +23,8 @@ class EhTagTranslation():
             for i in self.dbtext[0]['data']:
                 self.rows[i] = self.dbtext[0]['data'][i]['name']
 
-    def getTrans(self, string):
-        tagList = []
+    def get_trans(self, string):
+        tag_list = []
         for tag_raw in string.split(','):
             row, tag = tag_raw.split(':')
             row_t = self.rows[row]
@@ -32,5 +32,5 @@ class EhTagTranslation():
                 tag_t = self.dbtext[self.dbindex[row]]['data'][tag]['name']
             except KeyError:
                 tag_t = tag
-            tagList.append(row_t + ':' + tag_t)
-        return ','.join(tagList)
+            tag_list.append(row_t + ':' + tag_t)
+        return ','.join(tag_list)

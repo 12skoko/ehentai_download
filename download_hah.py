@@ -11,163 +11,159 @@ import html
 import os
 from tqdm import tqdm
 import shutil
+from sqlalchemy import create_engine, select, update, desc, Nullable, MetaData, Table, insert
+from sqlalchemy.orm import sessionmaker
+from model import Manga, MangaInfo
+import ehentai_utils
 
 
-class Gen_sqlstr():
+class SqlManager():
     def __init__(self, run_mode):
+        self.engine = create_engine(config.sql_engine)
+        self.SqlSession = sessionmaker(bind=self.engine)
         self.run_mode = run_mode
 
     def select_download_hah(self):
-        if self.run_mode == "main":
-            sqlstr = 'SELECT * FROM manga WHERE autostate = 6 ORDER BY timestamp DESC;'
-        elif self.run_mode == "old":
-            sqlstr = 'SELECT * FROM manga WHERE state = 6 ORDER BY timestamp DESC;'
-        elif self.run_mode == "special":
-            sqlstr = 'SELECT * FROM manga WHERE state = 15 ORDER BY timestamp DESC;'
-        else:
-            raise "unkown run_mode"
-        return sqlstr
+        with self.SqlSession() as sql_session:
+            if self.run_mode == "main":
+                query = (sql_session.query(Manga)
+                         .filter(Manga.autostate == 6)  # type: ignore
+                         .order_by(desc(Manga.postedtimestamp)))
+            elif self.run_mode == "old":
+                query = (sql_session.query(Manga)
+                         .filter(Manga.state == 6)  # type: ignore
+                         .order_by(desc(Manga.postedtimestamp)))
+            elif self.run_mode == "special":
+                query = (sql_session.query(Manga)
+                         .filter(Manga.state == 15)  # type: ignore
+                         .order_by(desc(Manga.postedtimestamp)))
+            else:
+                raise ValueError(f"Unknown run_mode: {run_mode}")
+            return query.all()
 
-    def post_hah_download_success(self, remark, id):
-        if self.run_mode == "main":
-            sqlstr = 'UPDATE manga SET autostate = 7, remark="%s" WHERE id = "%s"' % (remark, id)
-        elif self.run_mode == "old":
-            sqlstr = 'UPDATE manga SET state = 9, remark="%s" WHERE id = "%s"' % (remark, id)
-        elif self.run_mode == "special":
-            sqlstr = 'UPDATE manga SET state = 9, remark="%s" WHERE id = "%s"' % (remark, id)
-        else:
-            raise "unkown run_mode"
-        return sqlstr
+    def post_hah_download_success(self, remark, manga_id):
+        with self.SqlSession() as sql_session:
+            manga = sql_session.get(Manga, manga_id)
 
-    def direct_download_success(self, filename, id):
-        if self.run_mode == "main":
-            sqlstr = 'UPDATE manga SET autostate = 11, filename="%s" WHERE id = "%s"' % (filename, id)
-        elif self.run_mode == "old":
-            sqlstr = 'UPDATE manga SET state = 11, filename="%s" WHERE id = "%s"' % (filename, id)
-        elif self.run_mode == "special":
-            sqlstr = 'UPDATE manga SET state = 11, filename="%s" WHERE id = "%s"' % (filename, id)
-        else:
-            raise "unkown run_mode"
-        return sqlstr
+            if self.run_mode == "main":
+                manga.autostate = 7
+            elif self.run_mode == "old":
+                manga.state = 9
+            elif self.run_mode == "special":
+                manga.state = 9
+            else:
+                raise ValueError(f"Unknown run_mode: {self.run_mode}")
+            manga.remark = remark
 
-    def filename_too_long(self, filename, id):
-        if self.run_mode == "main":
-            sqlstr = 'UPDATE manga SET autostate = -3, remark="filename too long: %s"  WHERE id = "%s"' % (filename, id)
-        elif self.run_mode == "old":
-            sqlstr = 'UPDATE manga SET state = -3, remark="filename too long: %s"  WHERE id = "%s"' % (filename, id)
-        elif self.run_mode == "special":
-            sqlstr = 'UPDATE manga SET state = -3, remark="filename too long: %s"  WHERE id = "%s"' % (filename, id)
-        else:
-            raise "unkown run_mode"
-        return sqlstr
+            sql_session.commit()
 
-    def complete_hah_download(self, alias, id):
-        if self.run_mode == "main":
-            sqlstr = 'UPDATE manga set autostate = 9, alias="%s" WHERE autostate = 7 and id="%s";' % (alias, id)
-        elif self.run_mode == "old":
-            sqlstr = 'UPDATE manga set state = 10, alias="%s" WHERE state = 9 and id="%s";' % (alias, id)
-        elif self.run_mode == "special":
-            sqlstr = 'UPDATE manga set state = 10, alias="%s" WHERE state = 9 and id="%s";' % (alias, id)
-        else:
-            raise "unkown run_mode"
-        return sqlstr
+    def direct_download_success(self, filename, manga_id):
+        with self.SqlSession() as sql_session:
+            manga = sql_session.get(Manga, manga_id)
 
+            if self.run_mode == "main":
+                manga.autostate = 11
+            elif self.run_mode == "old":
+                manga.state = 11
+            elif self.run_mode == "special":
+                manga.state = 11
+            else:
+                raise ValueError(f"Unknown run_mode: {self.run_mode}")
+            manga.filename = filename
 
-def check_complete(base_directory, partial_directory_name, file_name="galleryinfo.txt"):
-    for item in os.listdir(base_directory):
-        item_path = os.path.join(base_directory, item)
-        if os.path.isdir(item_path) and partial_directory_name in item:
-            # 检查目录中是否存在指定的文件
-            for file_item in os.listdir(item_path):
-                if os.path.isfile(os.path.join(item_path, file_item)) and file_item == file_name:
-                    return True, item
-    return False, ""
+            sql_session.commit()
 
+    def filename_too_long(self, filename, manga_id):
+        with self.SqlSession() as sql_session:
+            manga = sql_session.get(Manga, manga_id)
 
-def getRealname(name):
-    length = len(name)
-    s = 0
-    m = 0
-    l = 0
-    r = length
-    for i in range(length):
-        ch = name[i]
-        if (s == 0 and m == 0) and (ch != '(' and ch != '[' and ch != ' '):
-            l = i
-            break
-        elif ch == '(':
-            s += 1
-        elif ch == '[':
-            m += 1
-        elif ch == ')':
-            s -= 1
-        elif ch == ']':
-            m -= 1
-    for i in range(length - 1, -1, -1):
-        ch = name[i]
-        if (s == 0 and m == 0) and (ch != ')' and ch != ']' and ch != ' '):
-            r = i + 1
-            break
-        elif ch == ')':
-            s += 1
-        elif ch == ']':
-            m += 1
-        elif ch == '(':
-            s -= 1
-        elif ch == '[':
-            m -= 1
-    realname = name[l:r]
-    return realname
+            if self.run_mode == "main":
+                manga.autostate = -3
+            elif self.run_mode == "old":
+                manga.state = -3
+            elif self.run_mode == "special":
+                manga.state = -3
+            else:
+                raise ValueError(f"Unknown run_mode: {self.run_mode}")
+            manga.remark = f"filename too long: {filename}"
 
+            sql_session.commit()
 
-def is_filename_too_long(filename, max_bytes=255, encoding="utf-8"):
-    try:
-        encoded_length = len(filename.encode(encoding))
-        return encoded_length > max_bytes
-    except UnicodeEncodeError:
-        return True
+    def complete_hah_download(self, alias, manga_id):
+        with self.SqlSession() as sql_session:
+            manga = sql_session.get(Manga, manga_id)
 
+            if self.run_mode == "main":
+                manga.autostate = 9
+            elif self.run_mode == "old":
+                manga.state = 10
+            elif self.run_mode == "special":
+                manga.state = 10
+            else:
+                raise ValueError(f"Unknown run_mode: {self.run_mode}")
+            manga.alias = alias
 
-def parseinfo(html):
-    soup = BeautifulSoup(html, 'lxml')
-    name = soup.find("h1", id="gj").text.replace('"', '""')
-    romaname = soup.find("h1", id="gn").text.replace('"', '""')
-    if name == '':
-        name = romaname
-        romaname = ''
-    category = soup.find("div", id="gdc").text
-    uploader = soup.find("div", id="gdn").text
-    bs_td = soup.find_all("td", class_="gdt2")
-    postedtime = bs_td[0].text
-    parent = bs_td[1].text
-    language = bs_td[3].text.replace("\xa0", "")
-    estimatedsize = bs_td[4].text
-    pages = int(bs_td[5].text.replace(" pages", ""))
-    favorited = int(bs_td[6].text.replace(" times", "").replace("Once", "1").replace("Never", "0"))
-    rating_count = int(soup.find("span", id="rating_count").text)
-    rating = int(float(soup.find("td", id="rating_label").text.replace("Average: ", "")) * 100)
-    tagstrings = soup.find("div", id="taglist")
-    taglist = []
-    row = ''
-    for text in tagstrings.strings:
-        if ':' in text:
-            row = text
-        else:
-            taglist.append(row + text)
-    tag = ','.join(taglist)
-    # div=soup.find('div', id='gd5')
-    # p_element = soup.find('p', class_='g2 gsp')
-    onclick_value = soup.find('a', href="#", string='Archive Download').get('onclick')
-    # print(a_element)
-    # onclick_value = a_element
-    downloadlink = re.search(r"return popUp\('(https://exhentai\.org/archiver\.php.*?)',480,320\)", onclick_value)[1]
-    return name, romaname, category, uploader, postedtime, language, estimatedsize, pages, favorited, rating_count, rating, tag, downloadlink, parent
+            sql_session.commit()
 
+    def download_failed_due_to_copyright(self, manga_id):
+        with self.SqlSession() as sql_session:
+            manga = sql_session.get(Manga, manga_id)
 
-def parse_file_size(size_str):
-    units = {"B": 1, "KiB": 1024, "MiB": 1048576, "GiB": 1073741824, "TiB": 1099511627776}
-    size, unit = float(size_str[:-4]), size_str[-3:]
-    return size * units[unit]
+            manga.state = 4
+            manga.autostate = None
+            manga.remark = "This gallery is unavailable due to a copyright claim"
+
+            sql_session.commit()
+
+    def insert_manga_info(self, manga_info):
+        with self.SqlSession() as sql_session:
+            sql_session.merge(manga_info)
+            sql_session.commit()
+
+    def parent_outdate(self, parent):
+        if parent != 'None':
+            with self.SqlSession() as sql_session:
+                parent_manga = sql_session.query(Manga).filter(Manga.manga_id.like(f"{parent}/%")).first()
+                if parent_manga:
+                    parent_manga.state = -1
+                    sql_session.commit()
+                    print(f"parent_outdate: {parent_manga.manga_id}")
+
+    def update_gp(self, size, gp):
+        gp_table = Table('GP', MetaData(), autoload_with=self.engine)
+        with self.SqlSession() as sql_session:
+            today = datetime.date.today()
+            year, week, _ = today.isocalendar()
+            weeknum = year * 100 + week
+
+            select_stmt = select(gp_table).where(gp_table.c.week == weeknum)  # type: ignore
+            req = sql_session.execute(select_stmt).first()
+
+            if not req:
+                update_stmt = (update(gp_table)
+                               .where(gp_table.c.week == weeknum - 1)  # type: ignore
+                               .values(nowgp=gp)
+                               )
+                sql_session.execute(update_stmt)
+
+                insert_stmt = (
+                    insert(gp_table)
+                    .values(week=weeknum, quota=size)
+                )
+                sql_session.execute(insert_stmt)
+
+            else:
+                file_sizes = [req.quota, size]
+                total_size = sum(ehentai_utils.parse_file_size(size) for size in file_sizes)
+                total_size_mb = str(int(total_size / (1024 ** 2))) + ' MiB'
+
+                update_stmt = (update(gp_table)
+                               .where(gp_table.c.week == weeknum)  # type: ignore
+                               .values(quota=total_size_mb)
+                               )
+                sql_session.execute(update_stmt)
+
+            sql_session.commit()
 
 
 def download_file(url, filename, download_path, retries=3, min_speed=config.direct_download_min_speed, check_interval=5):
@@ -210,7 +206,7 @@ def download_file(url, filename, download_path, retries=3, min_speed=config.dire
             if total_size != 0 and progress_bar.n != total_size:
                 raise Exception("ERROR: download error - file size mismatch")
 
-            shutil.move(temp_filepath, filepath)
+            shutil.move(temp_filepath, filepath)  # type: ignore
             print("Download completed successfully.")
             return
 
@@ -304,17 +300,37 @@ def download_aria2(url, file_name, checkout=0):
         i_time += 0
 
 
+def determine_download_method(soup):
+    direct_cost = soup.find("div", style="width:180px; float:left").find("div", style="text-align:center; margin-top:4px").find("strong").text
+    if direct_cost == 'Free!':
+        direct_cost = 0
+    else:
+        direct_cost = int(direct_cost[:-3].replace(',', ''))
+    target_td = ''
+    for td in soup.find_all('td'):
+        p_tags = td.find_all('p')
+        if p_tags and p_tags[0].text.strip() == 'Original':
+            target_td = td
+            break
+    hah_cost = target_td.find_all('p')[2].text
+    if hah_cost == 'Free':
+        hah_cost = 0
+    else:
+        hah_cost = int(hah_cost[:-3].replace(',', ''))
+
+    downflag = 1
+    if direct_cost == 0 or direct_cost < hah_cost or hah_cost > 8000 or hah_cost < 400:
+        downflag = 0
+
+    return downflag
+
+
 def download_hah(run_mode, download_mode):
     se = requests.session()
 
     tagTrans = EhTagTranslation()
 
-    conn = config.createDBconn()
-    c = conn.cursor()
-
-    sqlstr = gen_sqlstr.select_download_hah()
-    c.execute(sqlstr)
-    mangaList = c.fetchall()
+    mangaList = sql_manager.select_download_hah()
     lense = len(mangaList)
     dev = 0
     i = 0
@@ -324,181 +340,104 @@ def download_hah(run_mode, download_mode):
         # proxy = config.proxyPool[(datetime.datetime.now().hour + dev) % len(config.proxyPool)]
         manga = mangaList[i]
         print(str(i + 1) + '/' + str(lense))
-        url = manga[2]
+        url = manga.link
         try:
-            data = se.get(url, headers=config.header, cookies=config.cookies2, proxies=proxy).text
+            data = se.get(url, headers=config.header, cookies=config.cookies_with_donation, proxies=proxy).text
             if 'This gallery is unavailable due to a copyright claim' in data:
                 print('This gallery is unavailable due to a copyright claim')
-                sqlstr = f'UPDATE manga SET state = 4 , autostate = NULL , remark="This gallery is unavailable due to a copyright claim" WHERE id = "{manga[0]}"'
-                print(sqlstr)
-                c.execute(sqlstr)
-                conn.commit()
+                sql_manager.download_failed_due_to_copyright(manga.manga_id)
                 i += 1
                 time.sleep(10)
                 continue
 
-            info = parseinfo(data)
+            soup = BeautifulSoup(data, 'lxml')
+            manga_info, downloadlink, parent = ehentai_utils.parse_info(soup, tagTrans)
         except:
-            print('error', url, proxy)
+            print('requests error ', url, proxy)
             # print(data)
             errorflag += 1
             dev += 1
             if errorflag >= 5:
-                raise 'error'
+                raise ValueError(f"requests error {url} {proxy}")
             else:
                 time.sleep(2)
                 continue
+
         errorflag = 0
-        id = manga[0]
-        name = html.unescape(info[0]).replace('"', '""')
-        realname = getRealname(name)
-        # filename = manga[15].replace('"', '""')
-        updatetime = time.time()
-        tag_tran = tagTrans.getTrans(info[11]).replace('"', '""')
+        manga_info.manga_id = manga.manga_id
+        manga_info.state = 1
 
-        sqlstr = 'SELECT * FROM mangainfo WHERE id = "%s"' % (manga[0])
-        c.execute(sqlstr)
-        res = c.fetchall()
-        if res:
-            sqlstr = 'DELETE FROM mangainfo WHERE id = "%s"' % (manga[0])
-            c.execute(sqlstr)
-            print('updateinfo' + manga[0])
+        sql_manager.insert_manga_info(manga_info)
 
-        sqlstr = 'INSERT INTO mangainfo (id,name,romaname,realname,link,category,uploader,postedtime,language,estimatedsize,pages,favorited,ratingcount,rating,updatetime,state,tag,tagtran)values("%s","%s","%s","%s","%s","%s","%s","%s","%s","%s",%d,%d,%d,%d,%d,%d,"%s","%s");' \
-                 % (id, name, info[1], realname, url, info[2], info[3], info[4], info[5], info[6], info[7], info[8],
-                    info[9], info[10], updatetime, 1, info[11], tag_tran)
-        print('insert mangainfo:', manga[0], manga[1])
-        try:
-            c.execute(sqlstr)
-        except Exception as e:
-            print('insert mangainfo error', manga[0], manga[1])
-            print(e)
-            print(sqlstr)
-            raise 'insert mangainfo error'
-
-        downloadlink = info[12]
-        downpage = se.get(info[12], headers=config.header, cookies=config.cookies2, proxies=proxy).text
+        downpage = se.get(downloadlink, headers=config.header, cookies=config.cookies_with_donation, proxies=proxy).text
         soup2 = BeautifulSoup(downpage, 'lxml')
-        direct_cost = soup2.find("div", style="width:180px; float:left").find("div", style="text-align:center; margin-top:4px").find("strong").text
-        if direct_cost == 'Free!':
-            direct_cost = 0
-        else:
-            direct_cost = int(direct_cost[:-3].replace(',', ''))
-        target_td = ''
-        for td in soup2.find_all('td'):
-            p_tags = td.find_all('p')
-            if p_tags and p_tags[0].text.strip() == 'Original':
-                target_td = td
-                break
-        hah_cost = target_td.find_all('p')[2].text
-        if hah_cost == 'Free':
-            hah_cost = 0
-        else:
-            hah_cost = int(hah_cost[:-3].replace(',', ''))
 
-        downflag = 1
-        if direct_cost == 0 or direct_cost < hah_cost or hah_cost > 8000 or hah_cost < 400:
-            downflag = 0
-
+        downflag = determine_download_method(soup2)
         if download_mode == 'hah':
             downflag = 0
         elif download_mode == 'direct':
             downflag = 1
 
-        postlink = info[12].replace('--', '-')
+        postlink = downloadlink.replace('--', '-')
         if downflag == 0:
             print('hah download')
-            req2 = se.post(postlink, headers=config.header, cookies=config.cookies2, data={'hathdl_xres': 'org'}, proxies=proxy).text
+            req2 = se.post(postlink, headers=config.header, cookies=config.cookies_with_donation, data={'hathdl_xres': 'org'}, proxies=proxy).text
             if 'An original resolution download has been queued for client' not in req2:
                 print(postlink)
                 print(req2)
                 raise 'hah post error'
 
-            timestamp = int(time.time())
-            sqlstr = gen_sqlstr.post_hah_download_success(timestamp, manga[0])
-            c.execute(sqlstr)
-            conn.commit()
+            sql_manager.post_hah_download_success("Post hah download: " + str(time.time()), manga.manga_id)
 
         else:
             print('direct download')
-            print(manga[0])
-            data = se.post(postlink, headers=config.header, cookies=config.cookies2,
+            print(manga.manga_id)
+            data = se.post(postlink, headers=config.header, cookies=config.cookies_with_donation,
                            data={'dltype': 'org', 'dlcheck': 'Download Original Archive'}, proxies=proxy).text
             # print(data)
             soup3 = BeautifulSoup(data, 'lxml')
             templink = soup3.find("p", id="continue").find('a')['href']
             downlink = templink + '?start=1'
-            idname = '[' + manga[0].split('/')[0] + ']'
+            idname = '[' + manga.manga_id.split('/')[0] + ']'
             if idname in config.too_long_name_list:
                 zipname = config.too_long_name_list[idname]
             else:
-                zipname = '[' + manga[0].split('/')[0] + ']' + re.sub(r'[\\/*?:"<>|]', '_', name) + '.zip'
-            if is_filename_too_long(zipname):
-                print('File name too long: '+zipname)
-                sqlstr = gen_sqlstr.filename_too_long(zipname, manga[0])
-                c.execute(sqlstr)
-                conn.commit()
+                zipname = '[' + manga.manga_id.split('/')[0] + ']' + re.sub(r'[\\/*?:"<>|]', '_', manga.name) + '.zip'
+            if ehentai_utils.is_filename_too_long(zipname):
+                print('File name too long: ' + zipname)
+                sql_manager.filename_too_long(zipname, manga.manga_id)
             else:
                 print(downlink)
                 print(zipname)
                 # download_aria2(downlink, zipname)
                 download_file(downlink, zipname, config.direct_download_path)
-                sqlstr = gen_sqlstr.direct_download_success(zipname, manga[0])
-                c.execute(sqlstr)
-                conn.commit()
+                sql_manager.direct_download_success(zipname, manga.manga_id)
 
         if run_mode == "main":
-            if info[13] != 'None':
-                sqlstr = f'SELECT * FROM manga WHERE id LIKE "{info[13]}/%";'
-                c.execute(sqlstr)
-                res = c.fetchall()
-                if res:
-                    sqlstr = 'UPDATE manga SET state = -1 WHERE id = "%s"' % (res[0][0])
-                    print(sqlstr)
-                    c.execute(sqlstr)
-                    conn.commit()
+            sql_manager.parent_outdate(parent)
 
-        today = datetime.date.today()
-        year, week, _ = today.isocalendar()
-        weeknum = year * 100 + week
-        sqlstr = f'SELECT * FROM GP WHERE week={weeknum}'
-        c.execute(sqlstr)
-        req = c.fetchall()
-        if not req:
-            gpreq = se.get('https://e-hentai.org/exchange.php?t=gp', headers=config.header, cookies=config.cookies2,
-                           proxies=proxy).text
-            gpstr = re.search('Available: (.*?) kGP', gpreq)[1]
-            gp = int(gpstr.replace(',', '')) * 1000
-            print(gp)
-            sqlstr = f'UPDATE GP SET nowgp={gp} WHERE week={weeknum - 1};'
-            c.execute(sqlstr)
-            sqlstr = f'INSERT INTO GP (week,quota)values({weeknum},"{info[10]} MiB");'
-            c.execute(sqlstr)
-            conn.commit()
-        else:
-            file_sizes = [req[0][1], info[6]]
-            total_size = sum(parse_file_size(size) for size in file_sizes)
-            total_size_mb = str(int(total_size / (1024 ** 2))) + ' MiB'
-            sqlstr = f'UPDATE GP SET quota="{total_size_mb}" WHERE week={weeknum};'
-            c.execute(sqlstr)
-            conn.commit()
+        gpreq = se.get('https://e-hentai.org/exchange.php?t=gp',
+                       headers=config.header,
+                       cookies=config.cookies_with_donation,
+                       proxies=proxy).text
+        gpstr = re.search('Available: (.*?) kGP', gpreq)[1]
+        gp = int(gpstr.replace(',', '')) * 1000
+        sql_manager.update_gp(manga_info.estimatedsize, gp)
 
-        print(manga[0], manga[1])
+        print(manga.manga_id)
         i += 1
 
         if i < lense:
             time.sleep(20 + random.randint(0, 40))
             if downflag == 0:
                 i_time = 0
-                partial_name = '[' + manga[0].split('/')[0] + ']'
+                partial_name = '[' + manga.manga_id.split('/')[0] + ']'
                 while i_time < 80:
                     time.sleep(20)
-                    flag = check_complete(config.hah_download_path, partial_name)
+                    flag = ehentai_utils.check_complete(config.hah_download_path, partial_name)
                     if flag[0] == True:
-                        sqlstr = gen_sqlstr.complete_hah_download(flag[1], manga[0])
-                        print('completeHah', manga[0], manga[1])
-                        c.execute(sqlstr)
-                        conn.commit()
+                        sql_manager.complete_hah_download(flag[1], manga.manga_id)
+                        print('completeHah', manga.manga_id)
                         break
                     i_time += 1
 
@@ -528,8 +467,6 @@ if __name__ == "__main__":
 
     print(run_mode)
 
-    gen_sqlstr = Gen_sqlstr(run_mode)
-
     if args.hah == True and args.direct == True:
         raise 'wrong args'
     if args.hah:
@@ -537,6 +474,8 @@ if __name__ == "__main__":
     elif args.direct:
         download_mode = 'direct'
     else:
-        download_mode = 'auto'
+        download_mode = 'direct'
+
+    sql_manager = SqlManager(run_mode)
 
     download_hah(run_mode, download_mode)
