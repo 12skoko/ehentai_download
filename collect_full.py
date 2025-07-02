@@ -67,11 +67,11 @@ def collect(base_url, start, end, mark):
             manga_metadata = ehentai_utils.parse_metadata(tr_soup)
 
             with SqlSession() as sql_session:
-                existing_record = sql_session.get(Manga, manga_metadata.manga_id)
-                if existing_record:
-                    manga_metadata.state = None
-                else:
-                    manga_metadata.state = 1
+                # existing_record = sql_session.get(Manga, manga_metadata.manga_id)
+                # if existing_record:
+                #     manga_metadata.state = None
+                # else:
+                #     manga_metadata.state = 1
                 sql_session.merge(manga_metadata)
                 sql_session.commit()
 
