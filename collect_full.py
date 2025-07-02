@@ -39,8 +39,11 @@ def collect(base_url, start, end, mark):
                     raise "request error"
                 else:
                     next_num = 0
-            url = unext_a_soup.get("href")
-            next_num = int(url.split("next=")[1].split("&")[0])
+            else:
+                url = unext_a_soup.get("href")
+                next_num = int(url.split("next=")[1].split("&")[0])
+                with open('full_collect_log.txt', 'a', encoding='utf-8') as file:
+                    file.write(str(next_num) + '\n')
         except:
             print('request error')
             error_flag += 1
