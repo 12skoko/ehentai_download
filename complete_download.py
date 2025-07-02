@@ -7,7 +7,6 @@ import time
 import paramiko
 import re
 from bs4 import BeautifulSoup
-from TagTranslation import EhTagTranslation
 import random
 import config
 import datetime
@@ -18,7 +17,7 @@ import hashlib
 import json
 from sqlalchemy import create_engine, select, update, desc, and_, or_
 from sqlalchemy.orm import sessionmaker
-from model import Manga, MangaInfo
+from model import Manga, MangaInfo, EhTagTranslation
 import ehentai_utils
 
 

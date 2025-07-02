@@ -6,14 +6,13 @@ import random
 import config
 import datetime
 from bs4 import BeautifulSoup
-from TagTranslation import EhTagTranslation
 import html
 import os
 from tqdm import tqdm
 import shutil
 from sqlalchemy import create_engine, select, update, desc, Nullable, MetaData, Table, insert
 from sqlalchemy.orm import sessionmaker
-from model import Manga, MangaInfo
+from model import Manga, MangaInfo, EhTagTranslation
 import ehentai_utils
 
 
