@@ -85,7 +85,7 @@ if __name__ == "__main__":
     engine = create_engine(config.sql_engine)
     SqlSession = sessionmaker(bind=engine)
 
-    start = int(input("start"))
+    start = int(input("start: "))
 
     collect("https://exhentai.org/?f_cats=704&f_search=lolicon", start, 0, "full")
 
