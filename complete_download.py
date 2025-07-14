@@ -336,7 +336,7 @@ class SqlManager():
 
     def handle_conflicts_select(self):
         with self.SqlSession() as sql_session:
-            query = sql_session.query(Manga).filter(autostate=12)  # type: ignore
+            query = sql_session.query(Manga).filter(Manga.autostate == 12)  # type: ignore
             return query.all()
 
     def handle_conflicts_success(self, filename, manga_id):

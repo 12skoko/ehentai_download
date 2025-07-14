@@ -45,9 +45,8 @@ def screenall():
         for manga in undetermined_all_book:
             co += 1
             print(str(co) + '/' + length)
-            flag = 0
             similarList = sql_session.query(Manga).filter(Manga.realname == manga.realname).all()  # type: ignore
-            if flag == 1:
+            if len(similarList) == 1:
                 manga.autostate = 2
                 sql_session.commit()
             else:
