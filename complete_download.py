@@ -259,7 +259,7 @@ class SqlManager():
     def uploadall_torrent(self):
         with self.SqlSession() as sql_session:
             if self.run_mode == "main":
-                query = sql_session.query(Manga).filter(and_(Manga.autostate == 8, Manga.state is None))  # type: ignore
+                query = sql_session.query(Manga).filter(and_(Manga.autostate == 8, Manga.state == None))  # type: ignore
             elif self.run_mode == "old":
                 query = sql_session.query(Manga).filter(Manga.state == 8)  # type: ignore
             elif self.run_mode == "special":
@@ -271,7 +271,7 @@ class SqlManager():
     def uploadall_hah(self):
         with self.SqlSession() as sql_session:
             if self.run_mode == "main":
-                query = sql_session.query(Manga).filter(and_(Manga.autostate == 10, Manga.state is None))  # type: ignore
+                query = sql_session.query(Manga).filter(and_(Manga.autostate == 10, Manga.state == None))  # type: ignore
             elif self.run_mode == "old":
                 query = sql_session.query(Manga).filter(Manga.state == 12)  # type: ignore
             elif self.run_mode == "special":
@@ -283,7 +283,7 @@ class SqlManager():
     def uploadall_direct(self):
         with self.SqlSession() as sql_session:
             if self.run_mode == "main":
-                query = sql_session.query(Manga).filter(and_(Manga.autostate == 11, Manga.state is None))  # type: ignore
+                query = sql_session.query(Manga).filter(and_(Manga.autostate == 11, Manga.state == None))  # type: ignore
             elif self.run_mode == "old":
                 query = sql_session.query(Manga).filter(Manga.state == 11)  # type: ignore
             elif self.run_mode == "special":
@@ -321,7 +321,7 @@ class SqlManager():
         with self.SqlSession() as sql_session:
             query = sql_session.query(Manga).filter(
                 and_(Manga.state == -1,
-                     or_(Manga.remark is None,
+                     or_(Manga.remark == None,
                          Manga.remark != "deleted"
                          )
                      )
@@ -343,6 +343,16 @@ class SqlManager():
         with self.SqlSession() as sql_session:
             manga = sql_session.get(Manga, manga_id)
             manga.filename = filename
+
+            if self.run_mode == "main":
+                manga.autostate = 8
+            elif self.run_mode == "old":
+                manga.state = 8
+            elif self.run_mode == "special":
+                manga.state = 8
+            else:
+                raise ValueError(f"Unknown run_mode: {self.run_mode}")
+
             sql_session.commit()
 
     def compress_torrent_success(self, filename, alias, manga_id):
@@ -588,7 +598,7 @@ def collect_torrent():
         print(str(i + 1) + '/' + str(lense))
         url = manga.link
         try:
-            data = se.get(url, headers=config.header, cookies=config.cookies, proxies=proxy).text
+            data = se.get(url, headers=config.header, cookies=config.cookies_non_donation, proxies=proxy).text
             soup = BeautifulSoup(data, 'lxml')
             manga_info, downloadlink, parent = ehentai_utils.parse_info(soup, tagTrans)
         except:
@@ -621,6 +631,7 @@ def collect_torrent():
 
 def upload_all():
     print('-------------------uploadall-------------------')
+
     manga_list = sql_manager.uploadall_torrent()
     length = str(len(manga_list))
     i = 1
