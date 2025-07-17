@@ -53,12 +53,12 @@ def cal_rating(a, b):
 
 
 def tag_parse(tag_soup):
-    tag = ""
+    tag_list=[]
     for tr in tag_soup.find_all("tr", recursive=False):
         list_td = tr.find_all("td", recursive=False)
         tag_part = [div.get_text(strip=True) for div in list_td[1]]
-        tag += list_td[0].text + ",".join(tag_part)
-    return tag
+        tag_list.append(list_td[0].text + ",".join(tag_part))
+    return ",".join(tag_list)
 
 
 def parse_metadata(tr_soup, mode="Extended"):

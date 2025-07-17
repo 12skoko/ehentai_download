@@ -45,7 +45,7 @@ def screenall():
         for manga in undetermined_all_book:
             co += 1
             print(str(co) + '/' + length)
-            similarList = sql_session.query(Manga).filter(Manga.realname == manga.realname).all()  # type: ignore
+            similarList = sql_session.query(Manga).filter(and_(Manga.realname == manga.realname, or_(Manga.category == "Manga", Manga.category == "Doujinshi"))).all()  # type: ignore
             if len(similarList) == 1:
                 manga.autostate = 2
                 sql_session.commit()
@@ -130,7 +130,7 @@ def collect(base_url, start, end, mark):
 
             unext_a_soup = data_soup.find("a", id="unext")
             if unext_a_soup is None:
-                unext_span_soup = data_soup.find("span", class_="unext")
+                unext_span_soup = data_soup.find("span", id="unext")
                 if unext_span_soup is None:
                     # print(response.text)
                     raise "request error"
@@ -160,17 +160,24 @@ def collect(base_url, start, end, mark):
         for tr_soup in list_tr_soup:
             manga_metadata = ehentai_utils.parse_metadata(tr_soup)
 
+            screen_flag = 0
+            if (manga_metadata.category == "Manga" or manga_metadata.category == "Doujinshi") and ("chinese" in manga_metadata.tag or manga_metadata.rating >= 30):
+                screen_flag = 1
+
             languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese', 'ukrainian']
             if 'translated' in manga_metadata.tag and 'chinese' not in manga_metadata.tag:
                 if any(lang in manga_metadata.tag for lang in languages):
-                    continue
+                    screen_flag = 0
 
+            if screen_flag == 1:
                 nowtimestamp = int(time.time())
                 manga_timestamp = int(datetime.datetime.strptime(manga_metadata.postedtime, "%Y-%m-%d %H:%M").timestamp())
                 if nowtimestamp - manga_timestamp > 259200:
-                    manga_metadata.autostate = '1'
+                    manga_metadata.autostate = 1
                 else:
-                    manga_metadata.autostate = '-1'
+                    manga_metadata.autostate = -1
+            else:
+                manga_metadata.state = 1
 
             with SqlSession() as sql_session:
                 sql_session.merge(manga_metadata)
