@@ -33,7 +33,7 @@ def collect(base_url, start, end, mark):
 
             unext_a_soup = data_soup.find("a", id="unext")
             if unext_a_soup is None:
-                unext_span_soup = data_soup.find("span", class_="unext")
+                unext_span_soup = data_soup.find("span", id="unext")
                 if unext_span_soup is None:
                     # print(response.text)
                     raise "request error"
