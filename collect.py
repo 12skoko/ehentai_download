@@ -1,5 +1,5 @@
 import argparse
-from sqlalchemy import create_engine, select, update, insert, MetaData, Table, desc
+from sqlalchemy import create_engine, select, update, insert, MetaData, Table, desc, and_, or_
 from sqlalchemy.orm import sessionmaker
 from model import Manga
 import config
@@ -52,7 +52,7 @@ def screenall():
             else:
                 similarFlagList = []
                 for similar in similarList:
-                    score = similar.rating * 0.01 + similar.timestamp * 0.000000000001
+                    score = similar.rating * 0.01 + similar.postedtimestamp * 0.000000000001
                     if "無修正" in similar.name or "无修正" in similar.name:
                         if 'chinese' in similar.tag:
                             if similar.rating > 30:
@@ -200,8 +200,6 @@ if __name__ == "__main__":
     if args.updatedb == True:
         updateTagTranslation()
     else:
-        conn = config.createDBconn()
-        c = conn.cursor()
 
         with engine.begin() as conn:
             stmt = (
@@ -213,10 +211,11 @@ if __name__ == "__main__":
             result = conn.execute(stmt)
             latest_id = result.scalar()
 
-        pre = int(latest_id.split('/')[0])
+        end = int(latest_id.split('/')[0])
+        print("end:",end)
 
         for collect_url in config.collect_url_list:
-            collect(collect_url, 0, pre, config.collect_url_list[collect_url])
+            collect(collect_url, 0, end, config.collect_url_list[collect_url])
 
         screenall()
 
