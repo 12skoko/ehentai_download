@@ -360,6 +360,7 @@ class SqlManager():
             manga = sql_session.get(Manga, manga_id)
             manga.filename = filename
             manga.alias = alias
+            manga.remark = 'compressed'
             sql_session.commit()
 
     def insert_manga_info(self, manga_info):
