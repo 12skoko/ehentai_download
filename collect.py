@@ -132,7 +132,7 @@ def collect(base_url, start, end, mark):
             if unext_a_soup is None:
                 unext_span_soup = data_soup.find("span", id="unext")
                 if unext_span_soup is None:
-                    # print(response.text)
+                    print(response.text)
                     raise "request error"
                 else:
                     next_num = 0
