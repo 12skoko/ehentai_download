@@ -161,23 +161,34 @@ def collect(base_url, start, end, mark):
             manga_metadata = ehentai_utils.parse_metadata(tr_soup)
 
             screen_flag = 0
-            if (manga_metadata.category == "Manga" or manga_metadata.category == "Doujinshi") and ("chinese" in manga_metadata.tag or manga_metadata.rating >= 30):
-                screen_flag = 1
 
-            languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese', 'ukrainian']
-            if 'translated' in manga_metadata.tag and 'chinese' not in manga_metadata.tag:
-                if any(lang in manga_metadata.tag for lang in languages):
-                    screen_flag = 0
+            name_lower = manga_metadata.name.lower()
+            if any(name_keyword in name_lower for name_keyword in config.name_keywords):
+                screen_flag = 2
+            if any(tag_keyword in manga_metadata.tag for tag_keyword in config.tag_keywords):
+                screen_flag = 2
 
-            if screen_flag == 1:
-                nowtimestamp = int(time.time())
-                manga_timestamp = int(datetime.datetime.strptime(manga_metadata.postedtime, "%Y-%m-%d %H:%M").timestamp())
-                if nowtimestamp - manga_timestamp > 259200:
-                    manga_metadata.autostate = 1
-                else:
-                    manga_metadata.autostate = -1
+            if screen_flag == 2:
+                manga_metadata.autostate = 2
+
             else:
-                manga_metadata.state = 1
+                if (manga_metadata.category == "Manga" or manga_metadata.category == "Doujinshi") and ("chinese" in manga_metadata.tag or manga_metadata.rating >= 30):
+                    screen_flag = 1
+
+                languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese', 'ukrainian']
+                if 'translated' in manga_metadata.tag and 'chinese' not in manga_metadata.tag:
+                    if any(lang in manga_metadata.tag for lang in languages):
+                        screen_flag = 0
+
+                if screen_flag == 1:
+                    nowtimestamp = int(time.time())
+                    manga_timestamp = int(datetime.datetime.strptime(manga_metadata.postedtime, "%Y-%m-%d %H:%M").timestamp())
+                    if nowtimestamp - manga_timestamp > 259200:
+                        manga_metadata.autostate = 1
+                    else:
+                        manga_metadata.autostate = -1
+                else:
+                    manga_metadata.state = 1
 
             with SqlSession() as sql_session:
                 sql_session.merge(manga_metadata)
