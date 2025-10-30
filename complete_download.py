@@ -580,7 +580,7 @@ def compress_hah():
             sql_manager.compress_error(e, manga.manga_id, "hah")
             i += 1
             continue
-        sql_manager.compress_hah_success(zip_file_name, manga.id)
+        sql_manager.compress_hah_success(zip_file_name, manga.manga_id)
         i += 1
 
 
