@@ -748,7 +748,7 @@ def delete():
     i = 1
     length = str(len(contents))
     for item in contents:
-        idnum = re.search(r'\[(\d+)].+', item)[1]
+        idnum = re.search(r'^\[(\d+)]', item)[1]
         if sql_manager.is_need_to_delete_file(idnum):
             file_path = os.path.join(config.torrent_zip_delete_path, item)
             os.remove(file_path)
@@ -761,7 +761,7 @@ def delete():
     i = 1
     length = str(len(contents))
     for item in contents:
-        idnum = re.search(r'.+\[(\d+)]', item)[1]
+        idnum = re.search(r'^\[(\d+)]', item)[1]
         if sql_manager.is_need_to_delete_file(idnum):
             file_path = os.path.join(config.hah_download_path, item)
             shutil.rmtree(file_path, ignore_errors=True)
