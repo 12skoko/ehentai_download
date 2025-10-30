@@ -53,7 +53,7 @@ def cal_rating(a, b):
 
 
 def tag_parse(tag_soup):
-    tag_list=[]
+    tag_list = []
     for tr in tag_soup.find_all("tr", recursive=False):
         list_td = tr.find_all("td", recursive=False)
         tag_part = [div.get_text(strip=True) for div in list_td[1]]
@@ -251,3 +251,33 @@ def screen(similarFlagList):
     for i in filterDict3:
         res[select(filterDict3[i])] = 1
     return res
+
+
+def judge_screen_flag(manga_metadata: Manga, name_keywords, tag_keywords):
+    languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese', 'ukrainian']
+    if 'translated' in manga_metadata.tag and 'chinese' not in manga_metadata.tag:
+        if any(lang in manga_metadata.tag for lang in languages):
+            screen_flag = 0
+            return screen_flag
+
+    name_lower = manga_metadata.name.lower()
+    if any(name_keyword in name_lower for name_keyword in name_keywords):
+        screen_flag = 2
+        return screen_flag
+    if any(tag_keyword in manga_metadata.tag for tag_keyword in tag_keywords):
+        screen_flag = 2
+        return screen_flag
+
+    if (manga_metadata.category == "Manga" or manga_metadata.category == "Doujinshi") and ("chinese" in manga_metadata.tag or manga_metadata.rating >= 30):
+
+        nowtimestamp = int(time.time())
+        manga_timestamp = int(datetime.datetime.strptime(manga_metadata.postedtime, "%Y-%m-%d %H:%M").timestamp())
+        if nowtimestamp - manga_timestamp > 259200:
+            screen_flag = 1
+            return screen_flag
+        else:
+            screen_flag = -1
+            return screen_flag
+    else:
+        screen_flag = 0
+        return screen_flag
