@@ -253,6 +253,11 @@ def screen(similarFlagList):
     return res
 
 
+def contains_key(text, keywords):
+    pattern = r'\b' + re.escape(keywords) + r'\b'
+    return bool(re.search(pattern, text))
+
+
 def judge_screen_flag(manga_metadata: Manga, name_keywords, tag_keywords):
     languages = ['english', 'korean', 'russian', 'french', 'dutch', 'hungarian', 'italian', 'polish', 'portuguese', 'spanish', 'thai', 'vietnamese', 'ukrainian']
     if 'translated' in manga_metadata.tag and 'chinese' not in manga_metadata.tag:
@@ -260,11 +265,10 @@ def judge_screen_flag(manga_metadata: Manga, name_keywords, tag_keywords):
             screen_flag = 0
             return screen_flag
 
-    name_lower = manga_metadata.name.lower()
-    if any(name_keyword in name_lower for name_keyword in name_keywords):
+    if any(contains_key(manga_metadata.name.lower(), name_keyword) for name_keyword in name_keywords):
         screen_flag = 2
         return screen_flag
-    if any(tag_keyword in manga_metadata.tag for tag_keyword in tag_keywords):
+    if any(contains_key(manga_metadata.tag, tag_keyword) for tag_keyword in tag_keywords):
         screen_flag = 2
         return screen_flag
 
