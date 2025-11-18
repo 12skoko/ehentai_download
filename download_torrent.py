@@ -176,22 +176,24 @@ def download_torrent():
             seeds = 0
             size = ''
             torrentLink = ''
-            re_torrent = r"""(?s)Posted:</span> <span>(.*?)</span></td>.*?Size:</span> (.*?)</td>.*?Seeds:</span> (\d+)</td>.*?Peers:</span> (\d+)</td>.*?Downloads:</span> (\d+)</td>.*?<a href=\"(.*?)\" onclick=\"document\.location='(.*?)'; return false\">"""
-            torrentList = re.findall(re_torrent, data)
-            for torrent in torrentList:
-                if int(torrent[2]) > 0:
-                    torrentLink = torrent[5]
-                    size = torrent[1]
-                    seeds = int(torrent[2])
-                    break
-            for torrent in torrentList:
-                if int(torrent[2]) == 0:
-                    continue
-                if int(torrent[2]) > seeds and size == torrent[1]:
-                    seeds = int(torrent[2])
-                    torrentLink = torrent[5]
 
-            # print(torrentLink)
+            if data:
+                re_torrent = r"""(?s)Posted:</span> <span>(.*?)</span></td>.*?Size:</span> (.*?)</td>.*?Seeds:</span> (\d+)</td>.*?Peers:</span> (\d+)</td>.*?Downloads:</span> (\d+)</td>.*?<a href=\"(.*?)\" onclick=\"document\.location='(.*?)'; return false\">"""
+                torrentList = re.findall(re_torrent, data)
+                for torrent in torrentList:
+                    if int(torrent[2]) > 0:
+                        torrentLink = torrent[5]
+                        size = torrent[1]
+                        seeds = int(torrent[2])
+                        break
+                for torrent in torrentList:
+                    if int(torrent[2]) == 0:
+                        continue
+                    if int(torrent[2]) > seeds and size == torrent[1]:
+                        seeds = int(torrent[2])
+                        torrentLink = torrent[5]
+
+                # print(torrentLink)
 
             if torrentLink == '':
                 sql_manager.no_seeds(manga.manga_id)
