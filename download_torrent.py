@@ -109,15 +109,32 @@ class SqlManager():
 
             sql_session.commit()
 
+    def manga_unavailable(self,manga_id):
+        with self.SqlSession() as sql_session:
+            manga = sql_session.get(Manga, manga_id)
+
+            if self.run_mode == "main":
+                manga.autostate = -2
+            elif self.run_mode == "old":
+                manga.state = -2
+            elif self.run_mode == "special":
+                manga.state = -2
+            else:
+                raise ValueError(f"Unknown run_mode: {self.run_mode}")
+
+            sql_session.commit()
 
 def get_torrent_link(url):
     for dev in range(5):
         proxy = config.proxy_pool[(datetime.datetime.now().hour + dev) % len(config.proxy_pool)]
         try:
             data = requests.get(url, headers=config.header, cookies=config.cookies_non_donation, proxies=proxy).text
-            torrentExist = re.search("There are no torrents for this gallery", data)
-            if torrentExist is not None:
+            torrent_exist = re.search("There are no torrents for this gallery", data)
+            if torrent_exist is not None:
                 return None
+            manga_unavailable = re.search("This gallery is currently unavailable", data)
+            if manga_unavailable is not None:
+                return -1
             if 'torrent' not in data:
                 raise ValueError(f"get torrent link error: {url}")
             return data
@@ -152,82 +169,86 @@ def download_torrent():
 
         data = get_torrent_link(url)
 
-        seeds = 0
-        size = ''
-        torrentLink = ''
-        re_torrent = r"""(?s)Posted:</span> <span>(.*?)</span></td>.*?Size:</span> (.*?)</td>.*?Seeds:</span> (\d+)</td>.*?Peers:</span> (\d+)</td>.*?Downloads:</span> (\d+)</td>.*?<a href=\"(.*?)\" onclick=\"document\.location='(.*?)'; return false\">"""
-        torrentList = re.findall(re_torrent, data)
-        for torrent in torrentList:
-            if int(torrent[2]) > 0:
-                torrentLink = torrent[5]
-                size = torrent[1]
-                seeds = int(torrent[2])
-                break
-        for torrent in torrentList:
-            if int(torrent[2]) == 0:
-                continue
-            if int(torrent[2]) > seeds and size == torrent[1]:
-                seeds = int(torrent[2])
-                torrentLink = torrent[5]
-
-        # print(torrentLink)
-
-        if torrentLink == '':
-            sql_manager.no_seeds(manga.manga_id)
+        if data == -1:
+            sql_manager.manga_unavailable(manga.manga_id)
 
         else:
-            time.sleep(1)
-            try:
-                response = requests.get(torrentLink, headers=config.header, cookies=config.cookies_non_donation, proxies=proxy)
-                if response.text == 'The torrent file could not be found. Most likely you have mistyped the URL, or the torrent is no longer available.':
-                    raise 'error'
-            except:
-                time.sleep(1)
-                dev += 1
-                print('error', torrentLink)
-                proxy = config.proxy_pool[(datetime.datetime.now().hour + dev) % len(config.proxy_pool)]
-                response = requests.get(torrentLink, headers=config.header, cookies=config.cookies_non_donation, proxies=proxy)
+            seeds = 0
+            size = ''
+            torrentLink = ''
+            re_torrent = r"""(?s)Posted:</span> <span>(.*?)</span></td>.*?Size:</span> (.*?)</td>.*?Seeds:</span> (\d+)</td>.*?Peers:</span> (\d+)</td>.*?Downloads:</span> (\d+)</td>.*?<a href=\"(.*?)\" onclick=\"document\.location='(.*?)'; return false\">"""
+            torrentList = re.findall(re_torrent, data)
+            for torrent in torrentList:
+                if int(torrent[2]) > 0:
+                    torrentLink = torrent[5]
+                    size = torrent[1]
+                    seeds = int(torrent[2])
+                    break
+            for torrent in torrentList:
+                if int(torrent[2]) == 0:
+                    continue
+                if int(torrent[2]) > seeds and size == torrent[1]:
+                    seeds = int(torrent[2])
+                    torrentLink = torrent[5]
 
-            if response.text == 'The torrent file could not be found. Most likely you have mistyped the URL, or the torrent is no longer available.':
-                errorflag2 += 1
-                print('The torrent file could not be found')
+            # print(torrentLink)
+
+            if torrentLink == '':
                 sql_manager.no_seeds(manga.manga_id)
-                errortemplist.append(manga)
-                if errorflag2 >= 5:
-                    for mangatemp in errortemplist:
-                        sql_manager.rollback(mangatemp.manga_id)
-                    raise 'download torrent error:The torrent file could not be found'
 
             else:
-                errorflag2 = 0
-                errortemplist = []
+                time.sleep(1)
+                try:
+                    response = requests.get(torrentLink, headers=config.header, cookies=config.cookies_non_donation, proxies=proxy)
+                    if response.text == 'The torrent file could not be found. Most likely you have mistyped the URL, or the torrent is no longer available.':
+                        raise 'error'
+                except:
+                    time.sleep(1)
+                    dev += 1
+                    print('error', torrentLink)
+                    proxy = config.proxy_pool[(datetime.datetime.now().hour + dev) % len(config.proxy_pool)]
+                    response = requests.get(torrentLink, headers=config.header, cookies=config.cookies_non_donation, proxies=proxy)
 
-                print(torrentLink)
-                idnum = manga.manga_id.split('/')[0]
-                qbt_client.torrents_add(torrent_files=response.content,
-                                        save_path=config.qbit_torrent_path + idnum, category=sql_manager.torrent_category(),
-                                        rename=idnum)
-                time.sleep(3)
-                torrentinfo = ''
-                torrents_qbit = qbt_client.torrents.info()
-                for torrent in torrents_qbit:
-                    if torrent.name == idnum:
-                        torrentinfo = torrent
-                        break
-                if torrentinfo == '':
+                if response.text == 'The torrent file could not be found. Most likely you have mistyped the URL, or the torrent is no longer available.':
+                    errorflag2 += 1
+                    print('The torrent file could not be found')
+                    sql_manager.no_seeds(manga.manga_id)
+                    errortemplist.append(manga)
+                    if errorflag2 >= 5:
+                        for mangatemp in errortemplist:
+                            sql_manager.rollback(mangatemp.manga_id)
+                        raise 'download torrent error:The torrent file could not be found'
+
+                else:
+                    errorflag2 = 0
+                    errortemplist = []
+
+                    print(torrentLink)
+                    idnum = manga.manga_id.split('/')[0]
+                    qbt_client.torrents_add(torrent_files=response.content,
+                                            save_path=config.qbit_torrent_path + idnum, category=sql_manager.torrent_category(),
+                                            rename=idnum)
                     time.sleep(3)
+                    torrentinfo = ''
                     torrents_qbit = qbt_client.torrents.info()
                     for torrent in torrents_qbit:
                         if torrent.name == idnum:
                             torrentinfo = torrent
                             break
-                if torrentinfo == '':
-                    print('torrent add error', idnum)
-                    sql_manager.add_torrent_error(manga.manga_id)
-                else:
-                    filename = torrentinfo.content_path[len(torrentinfo.save_path) + 1:]
-                    print(filename)
-                    sql_manager.add_torrent_success(filename, torrentinfo.hash, manga.manga_id)
+                    if torrentinfo == '':
+                        time.sleep(3)
+                        torrents_qbit = qbt_client.torrents.info()
+                        for torrent in torrents_qbit:
+                            if torrent.name == idnum:
+                                torrentinfo = torrent
+                                break
+                    if torrentinfo == '':
+                        print('torrent add error', idnum)
+                        sql_manager.add_torrent_error(manga.manga_id)
+                    else:
+                        filename = torrentinfo.content_path[len(torrentinfo.save_path) + 1:]
+                        print(filename)
+                        sql_manager.add_torrent_success(filename, torrentinfo.hash, manga.manga_id)
 
         print(manga.manga_id)
         i += 1

@@ -28,7 +28,7 @@ def collect(base_url, start, end, mark):
         print(url)
         old_url = url
         try:
-            response = se.get(url, headers=config.header, cookies=config.cookies_non_donation, proxies=proxy)
+            response = se.get(url, headers=config.header, cookies=config.cookies_with_donation, proxies=proxy)
             data_soup = BeautifulSoup(response.text, 'lxml')
 
             unext_a_soup = data_soup.find("a", id="unext")
@@ -60,7 +60,7 @@ def collect(base_url, start, end, mark):
         total_info_soup = data_soup.find("table", class_="itg glte")
         list_tr_soup = total_info_soup.find_all("tr", recursive=False)
         print('find ', len(list_tr_soup))
-        if len(list_tr_soup) != 25 and next_num != 0:
+        if len(list_tr_soup) != 100 and next_num != 0:
             raise 'find metadata error'
 
         for tr_soup in list_tr_soup:
@@ -78,7 +78,7 @@ def collect(base_url, start, end, mark):
         print("Insert success")
 
         now_page += 1
-        time.sleep(80 + random.randint(0, 40))
+        time.sleep(60 + random.randint(0, 40))
 
 
 if __name__ == "__main__":
@@ -87,6 +87,6 @@ if __name__ == "__main__":
 
     start = int(input("start: "))
 
-    collect("https://exhentai.org/?f_cats=704&f_search=lolicon", start, 0, "full")
+    collect("https://exhentai.org/?f_search=lolicon&f_cats=704&f_sft=on&f_sfu=on&f_sfl=on", start, 0, "full")
 
     print('done')
