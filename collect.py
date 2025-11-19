@@ -11,7 +11,7 @@ import time
 import re
 import random
 import os
-
+# from datetime import datetime, timedelta
 
 def getRandom():
     metadata = MetaData()
@@ -193,18 +193,28 @@ if __name__ == "__main__":
         updateTagTranslation()
     else:
 
-        with engine.begin() as conn:
-            stmt = (
-                select(Manga.manga_id)
-                .where(Manga.autostate != -1)  # type: ignore
-                .order_by(desc(Manga.postedtimestamp))
-                .limit(1)
-            )
-            result = conn.execute(stmt)
-            latest_id = result.scalar()
+        with SqlSession() as sql_session:
+            latest_fetchtime = sql_session.query(Manga.fetchtime).filter(
+                Manga.autostate.isnot(None)
+            ).order_by(
+                Manga.fetchtime.desc()
+            ).first()
 
-        end = int(latest_id.split('/')[0])
-        print("end:", end)
+            latest_time = latest_fetchtime[0]
+
+            three_days_before_latest = latest_time - datetime.timedelta(days=4)
+
+            result = sql_session.query(Manga).filter(
+                Manga.autostate.isnot(None),
+                Manga.fetchtime <= three_days_before_latest.strftime("%Y-%m-%d %H:%M") # type: ignore
+            ).order_by(
+                Manga.fetchtime.desc()
+            ).first()
+
+            latest_id=result.manga_id
+
+            end = int(latest_id.split('/')[0])
+            print("end:", end)
 
         for collect_url in config.collect_url_list:
             collect(collect_url, 0, end, config.collect_url_list[collect_url])
