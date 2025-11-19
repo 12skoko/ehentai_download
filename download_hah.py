@@ -174,6 +174,8 @@ def download_file(url, filename, download_path, retries=3, min_speed=config.dire
     while attempt < retries:
         try:
             response = requests.get(url, headers=config.header, stream=True, proxies=config.proxies1)
+            if response.status_code == 410:
+                return -1
             response.raise_for_status()
             total_size = int(response.headers.get('content-length', 0))
             block_size = 1024
@@ -207,7 +209,7 @@ def download_file(url, filename, download_path, retries=3, min_speed=config.dire
 
             shutil.move(temp_filepath, filepath)  # type: ignore
             print("Download completed successfully.")
-            return
+            return 1
 
         except (ConnectionError, Exception) as e:
             attempt += 1
@@ -409,8 +411,9 @@ def download_hah(run_mode, download_mode):
                 print(downlink)
                 print(zipname)
                 # download_aria2(downlink, zipname)
-                download_file(downlink, zipname, config.direct_download_path)
-                sql_manager.direct_download_success(zipname, manga.manga_id)
+                flag = download_file(downlink, zipname, config.direct_download_path)
+                if flag == 1:
+                    sql_manager.direct_download_success(zipname, manga.manga_id)
 
         if run_mode == "main":
             sql_manager.parent_outdate(parent)
