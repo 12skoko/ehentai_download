@@ -173,11 +173,10 @@ def download_torrent():
             sql_manager.manga_unavailable(manga.manga_id)
 
         else:
-            seeds = 0
-            size = ''
             torrentLink = ''
-
             if data:
+                seeds = 0
+                size = ''
                 re_torrent = r"""(?s)Posted:</span> <span>(.*?)</span></td>.*?Size:</span> (.*?)</td>.*?Seeds:</span> (\d+)</td>.*?Peers:</span> (\d+)</td>.*?Downloads:</span> (\d+)</td>.*?<a href=\"(.*?)\" onclick=\"document\.location='(.*?)'; return false\">"""
                 torrentList = re.findall(re_torrent, data)
                 for torrent in torrentList:
