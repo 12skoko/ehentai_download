@@ -11,7 +11,7 @@ import time
 import re
 import random
 import os
-# from datetime import datetime, timedelta
+
 
 def getRandom():
     metadata = MetaData()
@@ -159,19 +159,25 @@ def collect(base_url, start, end, mark):
 
         for tr_soup in list_tr_soup:
             manga_metadata = ehentai_utils.parse_metadata(tr_soup)
-
             screen_flag = ehentai_utils.judge_screen_flag(manga_metadata, config.name_keywords, config.tag_keywords)
 
-            if screen_flag == -1:
-                manga_metadata.autostate = -1
-            elif screen_flag == 1:
-                manga_metadata.autostate = 1
-            elif screen_flag == 2:
-                manga_metadata.autostate = 2
-            elif screen_flag == 0:
-                manga_metadata.state = 1
-
             with SqlSession() as sql_session:
+
+                existing_record = sql_session.query(Manga).filter_by(manga_id=manga_metadata.manga_id).first()
+
+                if existing_record and existing_record.autostate != -1:
+                    manga_metadata.autostate = existing_record.autostate
+                    manga_metadata.state = existing_record.state
+                else:
+                    if screen_flag == -1:
+                        manga_metadata.autostate = -1
+                    elif screen_flag == 1:
+                        manga_metadata.autostate = 1
+                    elif screen_flag == 2:
+                        manga_metadata.autostate = 2
+                    elif screen_flag == 0:
+                        manga_metadata.state = 1
+
                 sql_session.merge(manga_metadata)
                 sql_session.commit()
 
@@ -206,12 +212,12 @@ if __name__ == "__main__":
 
             result = sql_session.query(Manga).filter(
                 Manga.autostate.isnot(None),
-                Manga.fetchtime <= three_days_before_latest.strftime("%Y-%m-%d %H:%M") # type: ignore
+                Manga.fetchtime <= three_days_before_latest.strftime("%Y-%m-%d %H:%M")  # type: ignore
             ).order_by(
                 Manga.fetchtime.desc()
             ).first()
 
-            latest_id=result.manga_id
+            latest_id = result.manga_id
 
             end = int(latest_id.split('/')[0])
             print("end:", end)
