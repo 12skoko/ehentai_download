@@ -368,6 +368,8 @@ def download_hah(run_mode, download_mode):
         errorflag = 0
         manga_info.manga_id = manga.manga_id
         manga_info.state = 1
+        manga_info.filename = manga.filename
+        manga_info.link = url
 
         sql_manager.insert_manga_info(manga_info)
 
