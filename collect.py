@@ -163,6 +163,25 @@ def collect(base_url, start, end, mark):
         time.sleep(5 + random.randint(0, 10))
 
 
+def get_checkpoint():
+    checkpoint_path = "checkpoint.txt"
+
+    with open(checkpoint_path, "r") as f:
+        content = f.read().strip()
+        if content.isdigit():
+            print(f"从 checkpoint.txt 读取到 end 值: {content}")
+            return str(int(content))
+
+
+def save_checkpoint(new_id):
+    checkpoint_path = "checkpoint.txt"
+    try:
+        with open(checkpoint_path, "w") as f:
+            f.write(str(new_id))
+        print(f"Checkpoint 已更新为: {new_id}")
+    except Exception as e:
+        print(f"保存 checkpoint 失败: {e}")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--end", type=int, help="手动指定 end 数值")
@@ -172,35 +191,26 @@ if __name__ == "__main__":
     SqlSession = sessionmaker(bind=engine)
 
     if args.end is not None:
-        end = int(args.end)
-        print("使用手动指定的 end 值:", end)
+        end = args.end
+        print(f"使用命令行指定的 end 值: {end}")
     else:
-
-        with SqlSession() as sql_session:
-            latest_fetchtime = sql_session.query(Manga.fetchtime).filter(
-                Manga.autostate.isnot(None)
-            ).order_by(
-                Manga.fetchtime.desc()
-            ).first()
-
-            latest_time = latest_fetchtime[0]
-
-            three_days_before_latest = latest_time - datetime.timedelta(days=4)
-
-            result = sql_session.query(Manga).filter(
-                Manga.autostate.isnot(None),
-                Manga.fetchtime <= three_days_before_latest.strftime("%Y-%m-%d %H:%M")  # type: ignore
-            ).order_by(
-                Manga.fetchtime.desc()
-            ).first()
-
-            latest_id = result.manga_id
-
-            end = int(latest_id.split('/')[0])
-            print("自动获取的 end 值:", end)
+        end = get_checkpoint()
 
     for collect_url in config.collect_url_list:
         collect(collect_url, 0, end, config.collect_url_list[collect_url])
+
+    with SqlSession() as sql_session:
+        result = sql_session.query(Manga).filter(
+            and_(
+                Manga.autostate.isnot(None),
+                Manga.autostate != -1
+            )
+        ).order_by(Manga.postedtimestamp.desc()).first()
+
+        if result:
+            latest_id_str = result.manga_id
+            init_end = int(latest_id_str.split('/')[0])
+            save_checkpoint(init_end)
 
     screenall()
 

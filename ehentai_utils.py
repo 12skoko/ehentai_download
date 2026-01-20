@@ -315,6 +315,7 @@ def updateTagTranslation():
             os.remove(temp_file)
         print(f"下载失败: {e}")
 
+
 if __name__ == "__main__":
     import argparse
 
