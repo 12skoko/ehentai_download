@@ -189,10 +189,10 @@ if __name__ == "__main__":
     SqlSession = sessionmaker(bind=engine)
 
     if args.end is not None:
-        end = args.end
+        end = int(args.end)
         print(f"使用命令行指定的 end 值: {end}")
     else:
-        end = get_checkpoint()
+        end = int(get_checkpoint())
 
     for collect_url in config.collect_url_list:
         collect(collect_url, 0, end, config.collect_url_list[collect_url])
