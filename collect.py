@@ -109,10 +109,12 @@ def collect(base_url, start, end, mark):
                     raise "request error"
                 else:
                     next_num = 0
-            url = unext_a_soup.get("href")
-            next_num = int(url.split("next=")[1].split("&")[0])
-        except:
+            else:
+                url = unext_a_soup.get("href")
+                next_num = int(url.split("next=")[1].split("&")[0])
+        except Exception as e:
             print('request error')
+            print(e)
             error_flag += 1
             url = old_url
             dev += 1
