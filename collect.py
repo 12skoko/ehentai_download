@@ -82,31 +82,7 @@ def screenall():
                     sql_session.commit()
 
 
-def updateTagTranslation():
-    url = "https://github.com/EhTagTranslation/Database/releases/latest/download/db.text.json"
-    target_file = "./db.text.json"
-    temp_file = target_file + ".tmp"
 
-    try:
-        response = requests.get(url, stream=True, proxies=config.proxies1)
-        response.raise_for_status()
-
-        with open(temp_file, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-
-        if os.path.exists(temp_file):
-            if os.path.exists(target_file):
-                os.replace(temp_file, target_file)
-            else:
-                os.rename(temp_file, target_file)
-        print(f"文件已更新：{target_file}")
-
-    except Exception as e:
-        if os.path.exists(temp_file):
-            os.remove(temp_file)
-        print(f"下载失败: {e}")
 
 
 def collect(base_url, start, end, mark):
@@ -189,14 +165,15 @@ def collect(base_url, start, end, mark):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--updatedb", action="store_true")
+    parser.add_argument("--end", type=int, help="手动指定 end 数值")
     args = parser.parse_args()
 
     engine = create_engine(config.sql_engine)
     SqlSession = sessionmaker(bind=engine)
 
-    if args.updatedb == True:
-        updateTagTranslation()
+    if args.end is not None:
+        end = int(args.end)
+        print("使用手动指定的 end 值:", end)
     else:
 
         with SqlSession() as sql_session:
@@ -220,15 +197,16 @@ if __name__ == "__main__":
             latest_id = result.manga_id
 
             end = int(latest_id.split('/')[0])
-            print("end:", end)
+            print("自动获取的 end 值:", end)
 
-        for collect_url in config.collect_url_list:
-            collect(collect_url, 0, end, config.collect_url_list[collect_url])
+    for collect_url in config.collect_url_list:
+        collect(collect_url, 0, end, config.collect_url_list[collect_url])
 
-        screenall()
+    screenall()
 
-        try:
-            updateTagTranslation()
-        except:
-            print('更新标签数据库失败')
-        print('done')
+    try:
+        ehentai_utils.updateTagTranslation()
+    except Exception as e:
+        print(e)
+        print('更新标签数据库失败')
+    print('done')

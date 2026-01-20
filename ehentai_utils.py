@@ -285,3 +285,43 @@ def judge_screen_flag(manga_metadata: Manga, name_keywords, tag_keywords):
     else:
         screen_flag = 0
         return screen_flag
+
+
+def updateTagTranslation():
+    import requests
+    import config
+    url = "https://github.com/EhTagTranslation/Database/releases/latest/download/db.text.json"
+    target_file = "./db.text.json"
+    temp_file = target_file + ".tmp"
+
+    try:
+        response = requests.get(url, stream=True, proxies=config.proxies1)
+        response.raise_for_status()
+
+        with open(temp_file, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+
+        if os.path.exists(temp_file):
+            if os.path.exists(target_file):
+                os.replace(temp_file, target_file)
+            else:
+                os.rename(temp_file, target_file)
+        print(f"文件已更新：{target_file}")
+
+    except Exception as e:
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        print(f"下载失败: {e}")
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="工具函数集")
+    parser.add_argument("function", choices=["updateTagTranslation"], help="要运行的函数名")
+
+    args = parser.parse_args()
+
+    if args.function == "updateTagTranslation":
+        updateTagTranslation()
