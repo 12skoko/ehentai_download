@@ -82,9 +82,6 @@ def screenall():
                     sql_session.commit()
 
 
-
-
-
 def collect(base_url, start, end, mark):
     se = requests.session()
     if start != 0:
@@ -181,6 +178,7 @@ def save_checkpoint(new_id):
         print(f"Checkpoint 已更新为: {new_id}")
     except Exception as e:
         print(f"保存 checkpoint 失败: {e}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
