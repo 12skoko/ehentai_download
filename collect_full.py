@@ -17,7 +17,6 @@ def collect(base_url, start, end, mark):
         url = base_url + "&next=" + str(start)
     else:
         url = base_url
-
     dev = 0
     error_flag = 0
     now_page = 0
@@ -35,7 +34,7 @@ def collect(base_url, start, end, mark):
             if unext_a_soup is None:
                 unext_span_soup = data_soup.find("span", id="unext")
                 if unext_span_soup is None:
-                    # print(response.text)
+                    print(response.text)
                     raise "request error"
                 else:
                     next_num = 0
@@ -44,8 +43,9 @@ def collect(base_url, start, end, mark):
                 next_num = int(url.split("next=")[1].split("&")[0])
                 with open('full_collect_log.txt', 'a', encoding='utf-8') as file:
                     file.write(str(next_num) + '\n')
-        except:
+        except Exception as e:
             print('request error')
+            print(e)
             error_flag += 1
             url = old_url
             dev += 1
@@ -67,18 +67,19 @@ def collect(base_url, start, end, mark):
             manga_metadata = ehentai_utils.parse_metadata(tr_soup)
 
             with SqlSession() as sql_session:
-                # existing_record = sql_session.get(Manga, manga_metadata.manga_id)
-                # if existing_record:
-                #     manga_metadata.state = None
-                # else:
-                #     manga_metadata.state = 1
+                existing_record = sql_session.get(Manga, manga_metadata.manga_id)
+                if existing_record and existing_record.autostate != -1:
+                    manga_metadata.autostate = existing_record.autostate
+                    manga_metadata.state = existing_record.state
+                else:
+                    manga_metadata.state = 13
                 sql_session.merge(manga_metadata)
                 sql_session.commit()
 
         print("Insert success")
 
         now_page += 1
-        time.sleep(60 + random.randint(0, 40))
+        time.sleep(10 + random.randint(0, 20))
 
 
 if __name__ == "__main__":
@@ -87,6 +88,6 @@ if __name__ == "__main__":
 
     start = int(input("start: "))
 
-    collect("https://exhentai.org/?f_search=lolicon&f_cats=704&f_sft=on&f_sfu=on&f_sfl=on", start, 0, "full")
+    collect("", start, 0, "")
 
     print('done')

@@ -137,9 +137,7 @@ def collect(base_url, start, end, mark):
             screen_flag = ehentai_utils.judge_screen_flag(manga_metadata, config.name_keywords, config.tag_keywords)
 
             with SqlSession() as sql_session:
-
-                existing_record = sql_session.query(Manga).filter_by(manga_id=manga_metadata.manga_id).first()
-
+                existing_record = sql_session.get(Manga, manga_metadata.manga_id)
                 if existing_record and existing_record.autostate != -1:
                     manga_metadata.autostate = existing_record.autostate
                     manga_metadata.state = existing_record.state
