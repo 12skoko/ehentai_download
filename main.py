@@ -51,7 +51,7 @@ def run_py(py_cmd, mark_name):
 start_date = datetime.now() + timedelta(seconds=1)
 scheduler = BlockingScheduler()
 
-scheduler.add_job(run_py, args=("collect.py", "collect"), trigger='interval', hours=6, seconds=7, start_date=start_date)
+scheduler.add_job(run_py, args=("collect.py", "collect"), trigger='interval', hours=3, seconds=7, start_date=start_date)
 scheduler.add_job(run_py, args=("download_torrent.py --main", "downloadTorrent"), trigger='interval', hours=2,
                   seconds=3, start_date=start_date)
 scheduler.add_job(run_py, args=("download_hah.py --main --direct", "downloadHah"), trigger='interval', hours=2, seconds=2,

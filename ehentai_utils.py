@@ -276,7 +276,7 @@ def judge_screen_flag(manga_metadata: Manga, name_keywords, tag_keywords):
 
         nowtimestamp = int(time.time())
         manga_timestamp = int(datetime.datetime.strptime(manga_metadata.postedtime, "%Y-%m-%d %H:%M").timestamp())
-        if nowtimestamp - manga_timestamp > 259200:
+        if nowtimestamp - manga_timestamp > 172800:
             screen_flag = 1
             return screen_flag
         else:
