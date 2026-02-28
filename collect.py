@@ -195,6 +195,7 @@ if __name__ == "__main__":
                 latest_id_str = selected_result.manga_id
                 init_end = int(latest_id_str.split('/')[0]) - 3000
                 end = init_end
+                print(f"使用自动获取的 end 值: {end}")
             else:
                 print("未找到end")
                 end = 0
