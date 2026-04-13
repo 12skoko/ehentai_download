@@ -3,6 +3,7 @@ import time
 import requests
 import re
 import random
+
 import config
 import datetime
 import qbittorrentapi
@@ -84,9 +85,9 @@ class SqlManager():
             if self.run_mode == "main":
                 manga.autostate = -3
             elif self.run_mode == "old":
-                manga.state = -2
+                manga.state = -3
             elif self.run_mode == "special":
-                manga.state = -2
+                manga.state = -3
             else:
                 raise ValueError(f"Unknown run_mode: {self.run_mode}")
 
@@ -109,7 +110,7 @@ class SqlManager():
 
             sql_session.commit()
 
-    def manga_unavailable(self,manga_id):
+    def manga_unavailable(self, manga_id):
         with self.SqlSession() as sql_session:
             manga = sql_session.get(Manga, manga_id)
 
@@ -123,6 +124,22 @@ class SqlManager():
                 raise ValueError(f"Unknown run_mode: {self.run_mode}")
 
             sql_session.commit()
+
+    def video_exists(self, manga_id):
+        with self.SqlSession() as sql_session:
+            manga = sql_session.get(Manga, manga_id)
+
+            if self.run_mode == "main":
+                manga.autostate = -6
+            elif self.run_mode == "old":
+                manga.state = -6
+            elif self.run_mode == "special":
+                manga.state = -6
+            else:
+                raise ValueError(f"Unknown run_mode: {self.run_mode}")
+
+            sql_session.commit()
+
 
 def get_torrent_link(url):
     for dev in range(5):
@@ -177,20 +194,37 @@ def download_torrent():
             if data:
                 seeds = 0
                 size = ''
-                re_torrent = r"""(?s)Posted:</span> <span>(.*?)</span></td>.*?Size:</span> (.*?)</td>.*?Seeds:</span> (\d+)</td>.*?Peers:</span> (\d+)</td>.*?Downloads:</span> (\d+)</td>.*?<a href=\"(.*?)\" onclick=\"document\.location='(.*?)'; return false\">"""
+                re_torrent = r"""(?s)Posted:</span> <span>(.*?)</span></td>.*?Size:</span> (.*?)</td>.*?Seeds:</span> (\d+)</td>.*?Peers:</span> (\d+)</td>.*?Downloads:</span> (\d+)</td>.*?<a href=\"(.*?)\" onclick=\"document\.location='(.*?)'; return false\">(.*?)</a></td>"""
                 torrentList = re.findall(re_torrent, data)
+                exclude_resolutions = ["1280x", "800x", "1920x", "2560x"]
+
+                video_mark = ["mp4", "video"]
+                video_extensions_flag = 0
+
                 for torrent in torrentList:
+                    if any(ext in torrent[7] for ext in video_mark):
+                        video_extensions_flag = 1
+                        break
+                    if any(res in torrent[7] for res in exclude_resolutions):
+                        continue
                     if int(torrent[2]) > 0:
                         torrentLink = torrent[5]
                         size = torrent[1]
                         seeds = int(torrent[2])
                         break
                 for torrent in torrentList:
+                    if any(res in torrent[7] for res in exclude_resolutions):
+                        continue
                     if int(torrent[2]) == 0:
                         continue
                     if int(torrent[2]) > seeds and size == torrent[1]:
                         seeds = int(torrent[2])
                         torrentLink = torrent[5]
+
+                if video_extensions_flag == 1:
+                    sql_manager.video_exists(manga.manga_id)
+                    print("Maybe video exists:", manga.manga_id)
+                    continue
 
                 # print(torrentLink)
 

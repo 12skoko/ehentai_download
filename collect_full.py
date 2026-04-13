@@ -13,8 +13,8 @@ import random
 
 def collect(base_url, start, end, mark):
     se = requests.session()
-    if start != 0:
-        url = base_url + "&next=" + str(start)
+    if start != '':
+        url = base_url + "&next=" + start
     else:
         url = base_url
     dev = 0
@@ -86,8 +86,8 @@ if __name__ == "__main__":
     engine = create_engine(config.sql_engine)
     SqlSession = sessionmaker(bind=engine)
 
-    start = int(input("start: "))
+    start = input("start: ")
 
-    collect("", start, 0, "")
+    collect(config.collect_full_url, start, 0, "full")
 
     print('done')
