@@ -202,7 +202,7 @@ def download_torrent():
                 video_extensions_flag = 0
 
                 for torrent in torrentList:
-                    if any(ext in torrent[7] for ext in video_mark):
+                    if any(ext in torrent[7].lower() for ext in video_mark):
                         video_extensions_flag = 1
                         break
                     if any(res in torrent[7] for res in exclude_resolutions):
