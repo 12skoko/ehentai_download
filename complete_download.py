@@ -694,20 +694,21 @@ def delete():
             i += 1
 
     # 删除aria2下载记录
-    downloads = aria2.get_downloads()
-    success_downloads = [d for d in downloads if d.is_complete]
-    total = len(success_downloads)
-    i = 1
-    for download in success_downloads:
-        file_name = download.name
-        match = re.search(r'^\[(\d+)]', file_name)
-        if match:
-            idnum = match.group(1)
-            if sql_manager.is_need_to_delete_file(idnum):
-                download.remove()
+    if use_aria2:
+        downloads = aria2.get_downloads()
+        success_downloads = [d for d in downloads if d.is_complete]
+        total = len(success_downloads)
+        i = 1
+        for download in success_downloads:
+            file_name = download.name
+            match = re.search(r'^\[(\d+)]', file_name)
+            if match:
+                idnum = match.group(1)
+                if sql_manager.is_need_to_delete_file(idnum):
+                    download.remove()
 
-                print(f"aria2 record deleted {i}/{total}: {file_name}")
-                time.sleep(0.2)
+                    print(f"aria2 record deleted {i}/{total}: {file_name}")
+                    time.sleep(0.2)
 
         i += 1
 
