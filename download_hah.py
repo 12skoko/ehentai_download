@@ -246,12 +246,7 @@ def download_file(url, filename, download_path, retries=3, min_speed=config.dire
 def download_aria2(url, filename, download_path):
     download = aria2.add_uris([url], options={"dir": download_path, "out": filename})
 
-    pbar = tqdm(
-        total=0,
-        unit='B',
-        unit_scale=True,
-        unit_divisor=1024,
-    )
+    pbar = tqdm(total=0, unit='iB', unit_scale=True, unit_divisor=1024, position=0, ncols=60)
 
     last_completed = 0
 
