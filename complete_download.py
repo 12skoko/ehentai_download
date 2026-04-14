@@ -15,6 +15,7 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 import shutil
 import hashlib
 import json
+import aria2p
 from sqlalchemy import create_engine, select, update, desc, and_, or_
 from sqlalchemy.orm import sessionmaker
 from model import Manga, MangaInfo, EhTagTranslation
@@ -661,7 +662,10 @@ def upload_all():
     i = 1
     for manga in manga_list:
         print('direct:' + str(i) + '/' + length)
-        api_upload(manga, config.direct_download_path)
+        if use_aria2:
+            api_upload(manga, config.aria2_download_path)
+        else:
+            api_upload(manga, config.direct_download_path)
         i += 1
         time.sleep(2)
 
@@ -690,46 +694,22 @@ def delete():
             i += 1
 
     # 删除aria2下载记录
-    # json_rpc_data = {
-    #     'jsonrpc': '2.0',
-    #     'method': 'aria2.tellStopped',
-    #     'id': 'qwer',
-    #     'params': [
-    #         f'token:{config.aria2_rpc_token}',
-    #         0,  # 偏移量，表示从第一个任务开始查询
-    #         1000  # 最大返回任务数，可以根据需要调整
-    #     ]
-    # }
-    # response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
-    # completed_tasks = response.json().get('result', [])
-    # i = 1
-    # length = str(len(completed_tasks))
-    # for task in completed_tasks:
-    #     taskid = task['gid']
-    #     file_name = os.path.basename(task['files'][0]['path'])
-    #     id = re.search('\[(\d+)\].+', file_name)[1]
-    #     sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}/%";'
-    #     c.execute(sqlstr)
-    #     res = c.fetchall()
-    #     if res:
-    #         json_rpc_data = {
-    #             'jsonrpc': '2.0',
-    #             'method': 'aria2.removeDownloadResult',
-    #             'id': 'qwer',
-    #             'params': [
-    #                 f'token:{config.aria2_rpc_token}',
-    #                 taskid
-    #             ]
-    #         }
-    #         response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
-    #         if response.status_code == 200 and 'result' in response.json():
-    #             print('deleted_aria2 ' + str(i) + '/' + length + ':' + file_name)
-    #         else:
-    #             print(json_rpc_data)
-    #             print(f"删除任务失败: {response.status_code} {response.text}" + file_name)
-    #             raise 'aria2删除任务失败'
-    #         time.sleep(0.2)
-    #     i += 1
+    downloads = aria2.get_downloads()
+    success_downloads = [d for d in downloads if d.is_complete]
+    total = len(success_downloads)
+    i = 1
+    for download in success_downloads:
+        file_name = download.name
+        match = re.search(r'^\[(\d+)]', file_name)
+        if match:
+            idnum = match.group(1)
+            if sql_manager.is_need_to_delete_file(idnum):
+                download.remove()
+
+                print(f"aria2 record deleted {i}/{total}: {file_name}")
+                time.sleep(0.2)
+
+        i += 1
 
     # 删除种子下载文件
     contents = os.listdir(config.torrent_download_path)
@@ -798,24 +778,17 @@ def delete():
         i += 1
 
     # 删除aria2下载文件
-    # contents = os.listdir(config.aria2_download_path)
-    # i = 1
-    # length = str(len(contents))
-    # for item in contents:
-    #     try:
-    #         id = re.search(r'\[(\d+)\].+', item)[1]
-    #     except:
-    #         continue
-    #     sqlstr = f'SELECT * FROM manga WHERE (state = 0 OR state = -1) AND id LIKE "{id}/%";'
-    #     c.execute(sqlstr)
-    #     res = c.fetchall()
-    #     if res:
-    #         # print(item)
-    #         file_path = os.path.join(config.aria2_delete_path, item)
-    #         os.remove(file_path)
-    #         time.sleep(0.2)
-    #         print('deleted ' + str(i) + '/' + length + ':' + file_path)
-    #     i += 1
+    contents = os.listdir(config.aria2_download_path)
+    i = 1
+    length = str(len(contents) - 1)
+    for item in contents:
+        idnum = re.search(r'^\[(\d+)]', item)[1]
+        if sql_manager.is_need_to_delete_file(idnum):
+            file_path = os.path.join(config.aria2_delete_path, item)
+            os.remove(file_path)
+            time.sleep(0.2)
+            print('deleted ' + str(i) + '/' + length + ':' + file_path)
+        i += 1
 
 
 if __name__ == "__main__":
@@ -825,6 +798,7 @@ if __name__ == "__main__":
     parser.add_argument("--main", action="store_true")
     parser.add_argument("--old", action="store_true")
     parser.add_argument("--special", action="store_true")
+    parser.add_argument("--noaria2", action="store_true")
 
     parser.add_argument("--interval", type=int, default=3600)
 
@@ -840,6 +814,14 @@ if __name__ == "__main__":
         run_mode = "old"
 
     print(run_mode)
+
+    if args.noaria2:
+        use_aria2 = False
+        print("no aria2")
+    else:
+        use_aria2 = True
+        print("use aria2")
+        aria2 = aria2p.API(aria2p.Client(**config.aria2_rpc))
 
     sql_manager = SqlManager(run_mode)
 

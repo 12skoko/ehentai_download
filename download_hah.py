@@ -460,8 +460,10 @@ if __name__ == "__main__":
 
     if args.noaria2:
         use_aria2 = False
+        print("no aria2")
     else:
         use_aria2 = True
+        print("use aria2")
         aria2 = aria2p.API(aria2p.Client(**config.aria2_rpc))
 
     sql_manager = SqlManager(run_mode)
