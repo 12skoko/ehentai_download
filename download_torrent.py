@@ -224,6 +224,9 @@ def download_torrent():
                 if video_extensions_flag == 1:
                     sql_manager.video_exists(manga.manga_id)
                     print("Maybe video exists:", manga.manga_id)
+                    i += 1
+                    if i < lense:
+                        time.sleep(30 + random.randint(0, 60))
                     continue
 
                 # print(torrentLink)
