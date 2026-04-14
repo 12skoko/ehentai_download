@@ -14,6 +14,7 @@ from sqlalchemy import create_engine, select, update, desc, Nullable, MetaData, 
 from sqlalchemy.orm import sessionmaker
 from model import Manga, MangaInfo, EhTagTranslation
 import ehentai_utils
+import aria2p
 
 
 class SqlManager():
@@ -69,6 +70,22 @@ class SqlManager():
             else:
                 raise ValueError(f"Unknown run_mode: {self.run_mode}")
             manga.filename = filename
+
+            sql_session.commit()
+
+    def direct_download_failed(self, manga_id, massage):
+        with self.SqlSession() as sql_session:
+            manga = sql_session.get(Manga, manga_id)
+
+            if self.run_mode == "main":
+                manga.autostate = -3
+            elif self.run_mode == "old":
+                manga.state = -3
+            elif self.run_mode == "special":
+                manga.state = -3
+            else:
+                raise ValueError(f"Unknown run_mode: {self.run_mode}")
+            manga.remark = massage
 
             sql_session.commit()
 
@@ -226,80 +243,38 @@ def download_file(url, filename, download_path, retries=3, min_speed=config.dire
                 raise "Max retries reached. Raising error to terminate program."
 
 
-def download_aria2(url, file_name, checkout=0):
-    json_rpc_data = {
-        'jsonrpc': '2.0',
-        'method': 'aria2.addUri',
-        'id': 'qwer',
-        'params': [
-            f'token:{config.aria2_rpc_token}',
-            [url],
-            {
-                'out': file_name
-            }
-        ]
-    }
-    response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
-    if response.status_code == 200:
-        print('下载任务添加成功:', response.json())
-        taskid = response.json()['result']
-    else:
-        print('添加任务失败:', response.status_code, response.text)
-        raise '添加任务失败'
-    time.sleep(10)
+def download_aria2(url, filename, download_path):
+    download = aria2.add_uris([url], options={"dir": download_path, "out": filename})
 
-    json_rpc_data = {
-        'jsonrpc': '2.0',
-        'method': 'aria2.tellStatus',
-        'id': 'qwer',
-        'params': [
-            f'token:{config.aria2_rpc_token}',
-            taskid
-        ]
-    }
-    i_time = 0
-    low_speed_time = 0
-    while i_time < 720:
-        time.sleep(5)
-        response = requests.post(config.aria2_rpc_url, json=json_rpc_data)
-        task_info = response.json().get('result', {})
-        status = task_info.get('status')
-        if status == 'active':
-            download_speed = task_info.get('downloadSpeed', '0')
-            download_speed_kbps = int(download_speed) / 1024
-            if download_speed_kbps < 50:
-                low_speed_time += 1
-                if low_speed_time > 12:
-                    print(download_speed_kbps, 'kbps')
-                    raise '下载速度过慢'
-        elif status == 'complete':
-            total_length = int(task_info.get('totalLength', 0))
-            if total_length > 10240:
-                print('下载完成')
-                break
-            else:
-                if checkout > 5:
-                    raise '下载失败1kb'
-                else:
-                    json_rpc_data = {
-                        'jsonrpc': '2.0',
-                        'method': 'aria2.removeDownloadResult',
-                        'id': 'qwer',
-                        'params': [
-                            f'token:{config.aria2_rpc_token}',
-                            taskid
-                        ]
-                    }
-                    requests.post(config.aria2_rpc_url, json=json_rpc_data)
-                    time.sleep(5)
-                    requests.post(config.aria2_rpc_url, json=json_rpc_data)
-                    time.sleep(5)
-                    checkout += 1
-                    download_aria2(url, file_name, checkout=checkout)
-        else:
-            print('下载状态：', status)
-            raise '未知下载状态'
-        i_time += 0
+    pbar = tqdm(
+        total=0,
+        unit='B',
+        unit_scale=True,
+        unit_divisor=1024,
+    )
+
+    last_completed = 0
+
+    while not download.is_complete:
+        download.update()
+
+        if download.has_failed:
+            pbar.close()
+            print(f"\n下载失败: {download.error_message}")
+            return download.error_message
+
+        if pbar.total == 0 and download.total_length > 0:
+            pbar.total = download.total_length
+
+        current_completed = download.completed_length
+        pbar.update(current_completed - last_completed)
+        last_completed = current_completed
+
+        time.sleep(0.5)
+
+    pbar.close()
+    print("文件下载成功")
+    return 1
 
 
 def determine_download_method(soup):
@@ -413,11 +388,16 @@ def download_hah(run_mode, download_mode):
             else:
                 print(downlink)
                 print(zipname)
-                # download_aria2(downlink, zipname)
-                flag = download_file(downlink, zipname, config.direct_download_path)
+                if use_aria2:
+                    flag = download_aria2(downlink, zipname, config.aria2_rpc_download_path)
+                else:
+                    flag = download_file(downlink, zipname, config.direct_download_path)
+
                 if flag == 1:
                     sql_manager.direct_download_success(zipname, manga.manga_id)
-
+                else:
+                    sql_manager.direct_download_failed(manga.manga_id, flag)
+                    raise 'direct download error'
 
         if run_mode == "main":
             sql_manager.parent_outdate(parent)
@@ -459,6 +439,7 @@ if __name__ == "__main__":
     parser.add_argument("--special", action="store_true")
     parser.add_argument("--hah", action="store_true")
     parser.add_argument("--direct", action="store_true")
+    parser.add_argument("--noaria2", action="store_true")
 
     args = parser.parse_args()
 
@@ -481,6 +462,12 @@ if __name__ == "__main__":
         download_mode = 'direct'
     else:
         download_mode = 'direct'
+
+    if args.noaria2:
+        use_aria2 = False
+    else:
+        use_aria2 = True
+        aria2 = aria2p.API(aria2p.Client(config.aria2_rpc))
 
     sql_manager = SqlManager(run_mode)
 
