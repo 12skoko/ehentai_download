@@ -467,7 +467,7 @@ if __name__ == "__main__":
         use_aria2 = False
     else:
         use_aria2 = True
-        aria2 = aria2p.API(aria2p.Client(config.aria2_rpc))
+        aria2 = aria2p.API(aria2p.Client(**config.aria2_rpc))
 
     sql_manager = SqlManager(run_mode)
 
