@@ -84,7 +84,7 @@ def parse_metadata(tr_soup, mode="Extended"):
         postedtimestamp = int(datetime.datetime.strptime(postedtime, "%Y-%m-%d %H:%M").timestamp())
 
         rating_style = list_metadata_div_soup[2]["style"]
-        rating_args = re.match(r"background-position:(-?\d+)px -(\d+)px;opacity:", rating_style)
+        rating_args = re.match(r"background-position:-?(\d+)px -(\d+)px;opacity:", rating_style)
 
         rating = cal_rating(rating_args[1], rating_args[2])
 
