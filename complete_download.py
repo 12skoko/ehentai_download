@@ -783,12 +783,14 @@ def delete():
     i = 1
     length = str(len(contents) - 1)
     for item in contents:
-        idnum = re.search(r'^\[(\d+)]', item)[1]
-        if sql_manager.is_need_to_delete_file(idnum):
-            file_path = os.path.join(config.aria2_delete_path, item)
-            os.remove(file_path)
-            time.sleep(0.2)
-            print('deleted ' + str(i) + '/' + length + ':' + file_path)
+        req=re.search(r'^\[(\d+)]', item)
+        if req:
+            idnum = req[1]
+            if sql_manager.is_need_to_delete_file(idnum):
+                file_path = os.path.join(config.aria2_delete_path, item)
+                os.remove(file_path)
+                time.sleep(0.2)
+                print('deleted ' + str(i) + '/' + length + ':' + file_path)
         i += 1
 
 
