@@ -180,12 +180,12 @@ if __name__ == "__main__":
                 Manga.autostate == -1  # type: ignore
             ).order_by(Manga.postedtimestamp.asc()).all()
 
-            six_days_ago = datetime.datetime.now() - datetime.timedelta(days=6)
-            six_days_ago_timestamp = int(six_days_ago.timestamp())
+            few_days_ago = datetime.datetime.now() - datetime.timedelta(days=config.few_days_ago)
+            few_days_ago_timestamp = int(few_days_ago.timestamp())
 
             selected_result = None
             for result in results:
-                if result.postedtimestamp <= six_days_ago_timestamp:
+                if result.postedtimestamp <= few_days_ago_timestamp:
                     continue
                 else:
                     selected_result = result
