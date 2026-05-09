@@ -53,6 +53,8 @@ def cal_rating(a, b):
 
 
 def tag_parse(tag_soup):
+    if tag_soup is None:
+        return ""
     tag_list = []
     for tr in tag_soup.find_all("tr", recursive=False):
         list_td = tr.find_all("td", recursive=False)
