@@ -53,8 +53,9 @@ class DatabaseEntry:
 class ProgressBar:
     """Small dependency-free terminal progress bar for long metadata repairs."""
 
-    def __init__(self, total: int) -> None:
+    def __init__(self, total: int, timezone: str) -> None:
         self.total = max(0, total)
+        self.timezone = timezone
         self.current = 0
         self.started_at = time.monotonic()
 
@@ -67,8 +68,9 @@ class ProgressBar:
         bar = "#" * filled + "." * (width - filled)
         elapsed = max(0.001, time.monotonic() - self.started_at)
         rate = done / elapsed
+        current_time = datetime.now(ZoneInfo(self.timezone)).strftime("%Y-%m-%d %H:%M:%S")
         line = (
-            f"\r[{bar}] {done}/{self.total} {ratio:6.2%} "
+            f"\r[{current_time}] [{bar}] {done}/{self.total} {ratio:6.2%} "
             f"candidate={candidates} updated={updated} failed={failed} "
             f"skipped={skipped} {rate:.1f}/s"
         )
@@ -287,7 +289,12 @@ def main(argv: list[str] | None = None) -> int:
         help="send metadata updates; without this flag the script only previews",
     )
     parser.add_argument("--limit", type=int, help="process at most this many LANraragi archives")
-    parser.add_argument("--timeout", type=float, default=120.0)
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=300.0,
+        help="HTTP timeout in seconds (default: 300)",
+    )
     parser.add_argument("--report", help="write the JSON report to this path")
     args = parser.parse_args(argv)
     if args.limit is not None and args.limit < 0:
@@ -303,6 +310,12 @@ def main(argv: list[str] | None = None) -> int:
         timeout=args.timeout,
     )
 
+    fetch_started_at = time.monotonic()
+    fetch_started_text = datetime.now(ZoneInfo(app.timezone)).strftime("%Y-%m-%d %H:%M:%S")
+    print(
+        f"[{fetch_started_text}] Fetching LANraragi archives "
+        f"(timeout={args.timeout:.0f}s)..."
+    )
     try:
         archives = fetch_archives(
             app.lanraragi_url,
@@ -311,7 +324,42 @@ def main(argv: list[str] | None = None) -> int:
         )
         if args.limit is not None:
             archives = archives[: args.limit]
+        fetch_elapsed = time.monotonic() - fetch_started_at
+        fetch_finished_text = datetime.now(ZoneInfo(app.timezone)).strftime("%Y-%m-%d %H:%M:%S")
+        print(
+            f"[{fetch_finished_text}] LANraragi archives received: "
+            f"{len(archives)} (elapsed={fetch_elapsed:.1f}s)"
+        )
+    except Exception:
+        fetch_elapsed = time.monotonic() - fetch_started_at
+        fetch_failed_text = datetime.now(ZoneInfo(app.timezone)).strftime("%Y-%m-%d %H:%M:%S")
+        print(
+            f"[{fetch_failed_text}] LANraragi archive request failed "
+            f"(elapsed={fetch_elapsed:.1f}s)",
+            file=sys.stderr,
+        )
+        raise
+
+    db_started_at = time.monotonic()
+    db_started_text = datetime.now(ZoneInfo(app.timezone)).strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{db_started_text}] Loading database metadata...")
+    try:
         entries = load_database_entries(database)
+        db_elapsed = time.monotonic() - db_started_at
+        db_finished_text = datetime.now(ZoneInfo(app.timezone)).strftime("%Y-%m-%d %H:%M:%S")
+        print(
+            f"[{db_finished_text}] Database metadata loaded: "
+            f"{len(entries)} (elapsed={db_elapsed:.1f}s)"
+        )
+    except Exception:
+        db_elapsed = time.monotonic() - db_started_at
+        db_failed_text = datetime.now(ZoneInfo(app.timezone)).strftime("%Y-%m-%d %H:%M:%S")
+        print(
+            f"[{db_failed_text}] Database metadata load failed "
+            f"(elapsed={db_elapsed:.1f}s)",
+            file=sys.stderr,
+        )
+        raise
     finally:
         database.dispose()
 
@@ -324,7 +372,7 @@ def main(argv: list[str] | None = None) -> int:
     ) = build_indexes(entries)
     mode = "apply" if args.apply else "dry-run"
     print(f"LANraragi archives: {len(archives)}")
-    print(f"Database rows with lrr_archive_id: {len(entries)}")
+    print(f"Database rows loaded: {len(entries)}")
     print(f"Mode: {mode}")
 
     counters = {
@@ -336,7 +384,7 @@ def main(argv: list[str] | None = None) -> int:
         "skipped": 0,
     }
     issues: list[dict[str, Any]] = []
-    progress = ProgressBar(len(archives))
+    progress = ProgressBar(len(archives), app.timezone)
 
     def advance() -> None:
         progress.update(
