@@ -43,7 +43,7 @@ eharchive-supervisor = "eh_archive.supervisor.app:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"eh_archive.web" = ["templates/*.html", "templates/manga/*.html", "static/*"]
+"eh_archive.web" = ["templates/*.html", "templates/**/*.html", "static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

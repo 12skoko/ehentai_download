@@ -39,6 +39,7 @@ build/
 sample/
 /tools/
 AGENTS.md
+/local_scripts/
 
 
 db.text.json

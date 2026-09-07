@@ -18,7 +18,6 @@ from ..db import Database
 from ..db.models import EventLog, MangaRecord, SystemControl, SystemHealth
 from ..logging import configure_logging
 from ..services.paths import safe_filename
-from ..special.registry import VIDEO_ARCHIVE_KIND
 from ..special.remarks import PHASE_LABELS, user_remark
 from ..special.service import (
     SpecialConflict,
@@ -27,7 +26,6 @@ from ..special.service import (
     SpecialServiceError,
     SpecialWorkflowService,
     active_special_workflow,
-    list_video_workflows,
     special_entry_for_manga,
     special_module_health,
     special_workflow_detail,
@@ -68,6 +66,11 @@ from .services import (
     safe_detail,
     serialize_manga,
     serialize_model,
+)
+from .special_modules import (
+    get_special_module_page,
+    special_module_cards,
+    special_module_url,
 )
 
 TEMPLATE_DIR = Path(__file__).with_name("templates")
@@ -494,22 +497,43 @@ def create_app(database: Database | None = None, *, config_dir: str | Path = "co
         )
 
     @app.get("/special", response_class=HTMLResponse)
-    def special_page(
-        request: Request,
-        notice: str | None = None,
-        found: int | None = None,
-        queued: int | None = None,
-        skipped: int | None = None,
-    ):
-        with database.session() as session:
-            data = list_video_workflows(session)
-        module_health = special_module_health(VIDEO_ARCHIVE_KIND, config_dir)
+    def special_page(request: Request):
         return templates.TemplateResponse(
             request=request,
             name="special.html",
             context=_context(
                 request,
+                modules=special_module_cards(config_dir),
+            ),
+        )
+
+    @app.get("/special/modules/{kind}", response_class=HTMLResponse)
+    def special_module_page(
+        request: Request,
+        kind: str,
+        notice: str | None = None,
+        found: int | None = None,
+        queued: int | None = None,
+        skipped: int | None = None,
+    ):
+        try:
+            module = get_special_module_page(kind)
+        except ValueError:
+            return _special_error_response(
+                request,
+                templates,
+                SpecialNotFound("特殊处理模块不存在"),
+            )
+        with database.session() as session:
+            data = module.load_dashboard(session)
+        module_health = special_module_health(module.kind, config_dir)
+        return templates.TemplateResponse(
+            request=request,
+            name=module.template_name,
+            context=_context(
+                request,
                 **data,
+                module=module,
                 module_health=module_health,
                 notice=notice,
                 batch_found=found,
@@ -533,7 +557,7 @@ def create_app(database: Database | None = None, *, config_dir: str | Path = "co
             return _special_error_response(request, templates, exc)
         return _redirect_response(
             request,
-            "/special?notice=batch-dispatched"
+            "/special/modules/video_archive?notice=batch-dispatched"
             f"&found={result.found}&queued={result.queued}&skipped={result.skipped}",
         )
 
@@ -552,7 +576,7 @@ def create_app(database: Database | None = None, *, config_dir: str | Path = "co
             return _special_error_response(request, templates, exc)
         return _redirect_response(
             request,
-            "/special?notice=cleanup-dispatched"
+            "/special/modules/video_archive?notice=cleanup-dispatched"
             f"&found={result.found}&queued={result.queued}&skipped={result.skipped}",
         )
 
@@ -596,6 +620,7 @@ def create_app(database: Database | None = None, *, config_dir: str | Path = "co
                 **detail,
                 notice=notice,
                 module_health=module_health,
+                module_url=special_module_url(detail["workflow"].kind),
             ),
         )
 
