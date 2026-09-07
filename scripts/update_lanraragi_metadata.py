@@ -27,7 +27,10 @@ from eh_archive.config import load_config
 from eh_archive.db import Database
 from eh_archive.db.models import MangaRecord
 from eh_archive.domain.models import MangaInfo
-from eh_archive.services.uploader.lanraragi import LANraragiApiGateway
+from eh_archive.services.uploader.lanraragi import (
+    RETRYABLE_HTTP_STATUSES,
+    LANraragiApiGateway,
+)
 
 if __package__:
     from .collect_all_archives import fetch_archives, output_path, write_json
@@ -80,6 +83,101 @@ class ProgressBar:
     def finish(self) -> None:
         sys.stdout.write("\n")
         sys.stdout.flush()
+
+
+class RequestPacer:
+    def __init__(self, interval: float) -> None:
+        self.interval = max(0.0, interval)
+        self.next_allowed_at = 0.0
+
+    def wait(self) -> None:
+        now = time.monotonic()
+        delay = self.next_allowed_at - now
+        if delay > 0:
+            time.sleep(delay)
+        self.next_allowed_at = time.monotonic() + self.interval
+
+
+def _retry_delay(backoff: float, attempt: int) -> float:
+    return min(30.0, backoff * (2 ** max(0, attempt - 1)))
+
+
+def _timestamp(timezone: str) -> str:
+    return datetime.now(ZoneInfo(timezone)).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _metadata_update_with_retry(
+    api: LANraragiApiGateway,
+    archive_id: str,
+    info: MangaInfo,
+    expected: dict[str, str],
+    *,
+    pacer: RequestPacer,
+    attempts: int,
+    backoff: float,
+    timezone: str,
+) -> Any:
+    for attempt in range(1, attempts + 1):
+        pacer.wait()
+        try:
+            outcome = api.update_metadata(archive_id, info, metadata=expected)
+        except Exception:
+            if attempt >= attempts:
+                raise
+            delay = _retry_delay(backoff, attempt)
+            print(
+                f"\n[{_timestamp(timezone)}] metadata update exception for "
+                f"{archive_id}; retry {attempt}/{attempts - 1} in {delay:.1f}s"
+            )
+            time.sleep(delay)
+            continue
+        if outcome.kind != "retry" or attempt >= attempts:
+            return outcome
+        delay = _retry_delay(backoff, attempt)
+        print(
+            f"\n[{_timestamp(timezone)}] LANraragi returned "
+            f"HTTP {outcome.status_code}; retry {attempt}/{attempts - 1} "
+            f"for {archive_id} in {delay:.1f}s"
+        )
+        time.sleep(delay)
+    raise RuntimeError("metadata update retry loop ended unexpectedly")
+
+
+def _metadata_with_retry(
+    api: LANraragiApiGateway,
+    archive_id: str,
+    *,
+    pacer: RequestPacer,
+    attempts: int,
+    backoff: float,
+    timezone: str,
+) -> tuple[int | None, dict[str, Any] | None]:
+    for attempt in range(1, attempts + 1):
+        pacer.wait()
+        try:
+            status, payload = api.metadata(archive_id)
+        except Exception:
+            if attempt >= attempts:
+                raise
+            delay = _retry_delay(backoff, attempt)
+            print(
+                f"\n[{_timestamp(timezone)}] metadata verification exception for "
+                f"{archive_id}; retry {attempt}/{attempts - 1} in {delay:.1f}s"
+            )
+            time.sleep(delay)
+            continue
+        if status not in RETRYABLE_HTTP_STATUSES and status not in {400, 404}:
+            return status, payload
+        if attempt >= attempts:
+            return status, payload
+        delay = _retry_delay(backoff, attempt)
+        print(
+            f"\n[{_timestamp(timezone)}] metadata verification returned "
+            f"HTTP {status}; retry {attempt}/{attempts - 1} for "
+            f"{archive_id} in {delay:.1f}s"
+        )
+        time.sleep(delay)
+    raise RuntimeError("metadata verification retry loop ended unexpectedly")
 
 
 def _manga_info(row: MangaRecord) -> MangaInfo | None:
@@ -295,12 +393,36 @@ def main(argv: list[str] | None = None) -> int:
         default=300.0,
         help="HTTP timeout in seconds (default: 300)",
     )
+    parser.add_argument(
+        "--request-interval",
+        type=float,
+        default=0.2,
+        help="minimum seconds between LANraragi requests (default: 0.2)",
+    )
+    parser.add_argument(
+        "--retry-attempts",
+        type=int,
+        default=5,
+        help="total attempts for retryable update/verification failures (default: 5)",
+    )
+    parser.add_argument(
+        "--retry-backoff",
+        type=float,
+        default=1.0,
+        help="initial retry backoff in seconds (default: 1.0)",
+    )
     parser.add_argument("--report", help="write the JSON report to this path")
     args = parser.parse_args(argv)
     if args.limit is not None and args.limit < 0:
         parser.error("--limit must be non-negative")
     if args.timeout <= 0:
         parser.error("--timeout must be greater than zero")
+    if args.request_interval < 0:
+        parser.error("--request-interval must be non-negative")
+    if args.retry_attempts <= 0:
+        parser.error("--retry-attempts must be positive")
+    if args.retry_backoff < 0:
+        parser.error("--retry-backoff must be non-negative")
 
     app, _, _, secrets = load_config(args.config_dir)
     database = Database(app.database_url)
@@ -374,6 +496,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"LANraragi archives: {len(archives)}")
     print(f"Database rows loaded: {len(entries)}")
     print(f"Mode: {mode}")
+    if args.apply:
+        print(
+            f"Request interval: {args.request_interval:.2f}s; "
+            f"retry attempts: {args.retry_attempts}"
+        )
 
     counters = {
         "scanned": 0,
@@ -383,8 +510,10 @@ def main(argv: list[str] | None = None) -> int:
         "failed": 0,
         "skipped": 0,
     }
+    failure_reasons: defaultdict[str, int] = defaultdict(int)
     issues: list[dict[str, Any]] = []
     progress = ProgressBar(len(archives), app.timezone)
+    pacer = RequestPacer(args.request_interval)
 
     def advance() -> None:
         progress.update(
@@ -464,12 +593,22 @@ def main(argv: list[str] | None = None) -> int:
             # Use the ID returned by the current LANraragi listing.  The
             # database ID is the preferred mapping key, but tag-based fallback
             # mapping may recover from a stale database archive ID.
-            outcome = api.update_metadata(archive_id, entry.info, metadata=expected)
+            outcome = _metadata_update_with_retry(
+                api,
+                archive_id,
+                entry.info,
+                expected,
+                pacer=pacer,
+                attempts=args.retry_attempts,
+                backoff=args.retry_backoff,
+                timezone=app.timezone,
+            )
         except Exception as exc:  # noqa: BLE001 - one bad archive must not stop the batch
             counters["failed"] += 1
             item["result"] = "failed"
             item["error_code"] = type(exc).__name__
             item["error"] = str(exc)[:1000]
+            failure_reasons[item["error_code"]] += 1
             issues.append(item)
             advance()
             continue
@@ -480,12 +619,20 @@ def main(argv: list[str] | None = None) -> int:
             item["error_code"] = outcome.error_code
             item["status_code"] = outcome.status_code
             item["error"] = (outcome.response or "")[:1000]
+            failure_reasons[item["error_code"] or f"http_{outcome.status_code}"] += 1
             issues.append(item)
             advance()
             continue
 
         try:
-            verify_status, payload = api.metadata(archive_id)
+            verify_status, payload = _metadata_with_retry(
+                api,
+                archive_id,
+                pacer=pacer,
+                attempts=args.retry_attempts,
+                backoff=args.retry_backoff,
+                timezone=app.timezone,
+            )
             verified = verify_status == 200 and metadata_matches(payload, expected)
         except Exception as exc:  # noqa: BLE001 - report verification failure and continue
             verified = False
@@ -499,6 +646,14 @@ def main(argv: list[str] | None = None) -> int:
                 "error",
                 "LANraragi metadata did not match the generated metadata after update",
             )
+            failure_reason = (
+                type(item["error"]).__name__
+                if not isinstance(item["error"], str)
+                else f"verification_http_{verify_status}"
+                if verify_status is not None
+                else "verification_exception"
+            )
+            failure_reasons[failure_reason] += 1
             issues.append(item)
             advance()
             continue
@@ -516,6 +671,7 @@ def main(argv: list[str] | None = None) -> int:
         "mode": mode,
         "lanraragi_source": f"{app.lanraragi_url.rstrip('/')}/api/archives",
         "summary": counters,
+        "failure_reasons": dict(sorted(failure_reasons.items())),
         "items": issues,
     }
     path = report_path(app, args.report)
