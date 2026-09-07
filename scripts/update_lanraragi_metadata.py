@@ -713,6 +713,8 @@ def main(argv: list[str] | None = None) -> int:
                 if delay > 0:
                     time.sleep(delay)
 
+                payload: dict[str, Any] | None = None
+                verification_error = ""
                 try:
                     verify_status, payload = _metadata_with_retry(
                         verify_api,
@@ -728,12 +730,29 @@ def main(argv: list[str] | None = None) -> int:
                 except Exception as exc:  # noqa: BLE001 - report verification failure and continue
                     verified = False
                     verify_status = None
-                    job.item["error"] = str(exc)[:1000]
+                    verification_error = str(exc)[:1000]
+                else:
+                    verification_error = ""
 
                 if verified:
                     record_updated(job.item)
                     continue
 
+                if payload is not None and verify_status == 200:
+                    mismatched_fields = [
+                        key
+                        for key, expected_value in job.expected.items()
+                        if payload.get(key) != expected_value
+                    ]
+                    job.item["verification_mismatches"] = mismatched_fields
+                    if "title" in mismatched_fields:
+                        job.item["actual_title"] = str(payload.get("title") or "")[:1000]
+                    if "tags" in mismatched_fields:
+                        actual_tags = str(payload.get("tags") or "")
+                        expected_tags = str(job.expected.get("tags") or "")
+                        job.item["actual_tags_prefix"] = actual_tags[:1000]
+                        job.item["actual_tags_length"] = len(actual_tags)
+                        job.item["expected_tags_length"] = len(expected_tags)
                 job.item.setdefault(
                     "error",
                     "LANraragi metadata did not match the generated metadata after update",
@@ -749,7 +768,7 @@ def main(argv: list[str] | None = None) -> int:
                     result="failed_verification",
                     error_code=failure_reason,
                     status_code=verify_status,
-                    error=str(job.item["error"]),
+                    error=verification_error or str(job.item["error"]),
                 )
             finally:
                 verify_queue.task_done()
