@@ -422,8 +422,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--request-interval",
         type=float,
-        default=0.2,
-        help="minimum seconds between LANraragi requests (default: 0.2)",
+        default=0.1,
+        help="minimum seconds between requests in each pipeline worker (default: 0.1)",
     )
     parser.add_argument(
         "--retry-attempts",
@@ -554,24 +554,16 @@ def main(argv: list[str] | None = None) -> int:
     failure_reasons: defaultdict[str, int] = defaultdict(int)
     issues: list[dict[str, Any]] = []
     progress = ProgressBar(len(archives), app.timezone)
-    pacer = RequestPacer(args.request_interval)
+    put_pacer = RequestPacer(args.request_interval)
+    verify_pacer = RequestPacer(args.request_interval)
     state_lock = threading.Lock()
     progress_lock = threading.Lock()
-    put_queue: Queue[MetadataUpdateJob | None] = Queue()
-    verify_queue: Queue[MetadataVerificationJob | None] = Queue()
+    put_queue: Queue[MetadataUpdateJob | None] = Queue(maxsize=100)
+    verify_queue: Queue[MetadataVerificationJob | None] = Queue(maxsize=100)
 
     def advance() -> None:
         with progress_lock:
             progress.update(
-                candidates=counters["candidates"],
-                updated=counters["updated"],
-                failed=counters["failed"],
-                skipped=counters["skipped"],
-            )
-
-    def refresh_progress() -> None:
-        with progress_lock:
-            progress.refresh(
                 candidates=counters["candidates"],
                 updated=counters["updated"],
                 failed=counters["failed"],
@@ -597,14 +589,14 @@ def main(argv: list[str] | None = None) -> int:
             reason = error_code or f"http_{status_code}"
             failure_reasons[reason] += 1
             issues.append(item)
-        refresh_progress()
+        advance()
 
     def record_updated(item: dict[str, Any]) -> None:
         with state_lock:
             counters["updated"] += 1
             item["result"] = "updated"
             issues.append(item)
-        refresh_progress()
+        advance()
 
     def put_worker() -> None:
         while True:
@@ -618,7 +610,7 @@ def main(argv: list[str] | None = None) -> int:
                         job.archive_id,
                         job.info,
                         job.expected,
-                        pacer=pacer,
+                        pacer=put_pacer,
                         attempts=args.retry_attempts,
                         backoff=args.retry_backoff,
                         timezone=app.timezone,
@@ -667,7 +659,7 @@ def main(argv: list[str] | None = None) -> int:
                     verify_status, payload = _metadata_with_retry(
                         verify_api,
                         job.archive_id,
-                        pacer=pacer,
+                        pacer=verify_pacer,
                         attempts=args.retry_attempts,
                         backoff=args.retry_backoff,
                         timezone=app.timezone,
@@ -796,7 +788,6 @@ def main(argv: list[str] | None = None) -> int:
                 item=item,
             )
         )
-        advance()
 
     if args.apply:
         put_queue.put(None)
