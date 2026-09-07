@@ -215,7 +215,7 @@ class LANraragiApiGateway:
         response = self._request(
             "put",
             f"{self.base_url}/api/archives/{archive_id}/metadata",
-            data=dict(metadata) if metadata is not None else self.metadata_values(info),
+            params=dict(metadata) if metadata is not None else self.metadata_values(info),
             headers=self.headers,
             timeout=self.timeout,
         )
