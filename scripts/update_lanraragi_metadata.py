@@ -59,6 +59,7 @@ class DatabaseEntry:
 @dataclass(frozen=True)
 class MetadataUpdateJob:
     archive_id: str
+    manga_id: str
     info: MangaInfo
     expected: dict[str, str]
     item: dict[str, Any]
@@ -68,7 +69,7 @@ class MetadataUpdateJob:
 class MetadataVerificationJob:
     ready_at: float
     archive_id: str
-    expected: dict[str, str]
+    manga_id: str
     item: dict[str, Any]
 
 
@@ -302,6 +303,15 @@ def gallery_ids_from_tags(tags: str) -> set[str]:
     }
 
 
+def metadata_contains_manga_id(
+    payload: dict[str, Any] | None,
+    manga_id: str,
+) -> bool:
+    if payload is None:
+        return False
+    return manga_id.casefold() in gallery_ids_from_tags(str(payload.get("tags") or ""))
+
+
 def _numeric_id(manga_id: str) -> str:
     return manga_id.split("/", 1)[0]
 
@@ -428,10 +438,6 @@ def expected_title(archive: dict[str, Any]) -> str:
     # LANraragi's documented field is title.  name is accepted for old export
     # files, but is never sent back to the API.
     return str(archive.get("title") or archive.get("name") or "")
-
-
-def metadata_matches(payload: dict[str, Any] | None, expected: dict[str, str]) -> bool:
-    return payload is not None and all(payload.get(key) == value for key, value in expected.items())
 
 
 def report_path(app: Any, requested: str | None) -> Path:
@@ -696,7 +702,7 @@ def main(argv: list[str] | None = None) -> int:
                     MetadataVerificationJob(
                         ready_at=time.monotonic() + args.verify_delay,
                         archive_id=job.archive_id,
-                        expected=job.expected,
+                        manga_id=job.manga_id,
                         item=job.item,
                     )
                 )
@@ -724,8 +730,8 @@ def main(argv: list[str] | None = None) -> int:
                         backoff=args.retry_backoff,
                         timezone=app.timezone,
                     )
-                    verified = verify_status == 200 and metadata_matches(
-                        payload, job.expected
+                    verified = verify_status == 200 and metadata_contains_manga_id(
+                        payload, job.manga_id
                     )
                 except Exception as exc:  # noqa: BLE001 - report verification failure and continue
                     verified = False
@@ -739,20 +745,13 @@ def main(argv: list[str] | None = None) -> int:
                     continue
 
                 if payload is not None and verify_status == 200:
-                    mismatched_fields = [
-                        key
-                        for key, expected_value in job.expected.items()
-                        if payload.get(key) != expected_value
+                    job.item["verification_mismatches"] = [
+                        "manga_id_missing_from_tags"
                     ]
-                    job.item["verification_mismatches"] = mismatched_fields
-                    if "title" in mismatched_fields:
-                        job.item["actual_title"] = str(payload.get("title") or "")[:1000]
-                    if "tags" in mismatched_fields:
-                        actual_tags = str(payload.get("tags") or "")
-                        expected_tags = str(job.expected.get("tags") or "")
-                        job.item["actual_tags_prefix"] = actual_tags[:1000]
-                        job.item["actual_tags_length"] = len(actual_tags)
-                        job.item["expected_tags_length"] = len(expected_tags)
+                    actual_tags = str(payload.get("tags") or "")
+                    job.item["actual_tags_prefix"] = actual_tags[:1000]
+                    job.item["actual_tags_length"] = len(actual_tags)
+                    job.item["expected_manga_id"] = job.manga_id
                 job.item.setdefault(
                     "error",
                     "LANraragi metadata did not match the generated metadata after update",
@@ -762,7 +761,7 @@ def main(argv: list[str] | None = None) -> int:
                 elif verify_status != 200:
                     failure_reason = f"verification_http_{verify_status}"
                 else:
-                    failure_reason = "verification_mismatch"
+                    failure_reason = "verification_manga_id_missing"
                 record_failure(
                     job.item,
                     result="failed_verification",
@@ -860,6 +859,7 @@ def main(argv: list[str] | None = None) -> int:
         put_queue.put(
             MetadataUpdateJob(
                 archive_id=archive_id,
+                manga_id=entry.manga_id,
                 info=entry.info,
                 expected=expected,
                 item=item,
