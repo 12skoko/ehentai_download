@@ -10,6 +10,7 @@ Preview is the default.  Pass ``--apply`` to send PUT requests to LANraragi.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 import threading
@@ -80,14 +81,33 @@ class ProgressBar:
         self.current = 0
         self.started_at = time.monotonic()
 
-    def update(self, *, candidates: int, updated: int, failed: int, skipped: int) -> None:
+    def update(
+        self,
+        *,
+        candidates: int,
+        updated: int,
+        failed: int,
+        skipped: int,
+        failure_summary: str = "",
+    ) -> None:
         self.current += 1
-        self.render(candidates=candidates, updated=updated, failed=failed, skipped=skipped)
+        self.render(
+            candidates=candidates,
+            updated=updated,
+            failed=failed,
+            skipped=skipped,
+            failure_summary=failure_summary,
+        )
 
-    def refresh(self, *, candidates: int, updated: int, failed: int, skipped: int) -> None:
-        self.render(candidates=candidates, updated=updated, failed=failed, skipped=skipped)
-
-    def render(self, *, candidates: int, updated: int, failed: int, skipped: int) -> None:
+    def render(
+        self,
+        *,
+        candidates: int,
+        updated: int,
+        failed: int,
+        skipped: int,
+        failure_summary: str = "",
+    ) -> None:
         width = 32
         done = min(self.current, self.total)
         ratio = done / self.total if self.total else 1.0
@@ -101,6 +121,8 @@ class ProgressBar:
             f"candidate={candidates} updated={updated} failed={failed} "
             f"skipped={skipped} {rate:.1f}/s"
         )
+        if failure_summary:
+            line += f" errors={failure_summary}"
         sys.stdout.write(line)
         sys.stdout.flush()
 
@@ -122,6 +144,24 @@ class RequestPacer:
             if delay > 0:
                 time.sleep(delay)
             self.next_allowed_at = time.monotonic() + self.interval
+
+
+class FailureLogger:
+    """Append each failure immediately so Ctrl+C does not lose diagnostics."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.handle = path.open("a", encoding="utf-8")
+        self.lock = threading.Lock()
+
+    def write(self, item: dict[str, Any]) -> None:
+        with self.lock:
+            self.handle.write(json.dumps(item, ensure_ascii=False, default=str) + "\n")
+            self.handle.flush()
+
+    def close(self) -> None:
+        with self.lock:
+            self.handle.close()
 
 
 def _retry_delay(backoff: float, attempt: int) -> float:
@@ -560,14 +600,30 @@ def main(argv: list[str] | None = None) -> int:
     progress_lock = threading.Lock()
     put_queue: Queue[MetadataUpdateJob | None] = Queue(maxsize=100)
     verify_queue: Queue[MetadataVerificationJob | None] = Queue(maxsize=100)
+    path = report_path(app, args.report)
+    failure_logger = (
+        FailureLogger(path.with_suffix(".failures.jsonl")) if args.apply else None
+    )
+    if failure_logger is not None:
+        print(f"Failure log: {failure_logger.path}")
+
+    def failure_summary() -> str:
+        with state_lock:
+            top = sorted(
+                failure_reasons.items(),
+                key=lambda pair: (-pair[1], pair[0]),
+            )[:3]
+        return ",".join(f"{reason}:{count}" for reason, count in top)
 
     def advance() -> None:
+        summary = failure_summary()
         with progress_lock:
             progress.update(
                 candidates=counters["candidates"],
                 updated=counters["updated"],
                 failed=counters["failed"],
                 skipped=counters["skipped"],
+                failure_summary=summary,
             )
 
     def record_failure(
@@ -589,6 +645,8 @@ def main(argv: list[str] | None = None) -> int:
             reason = error_code or f"http_{status_code}"
             failure_reasons[reason] += 1
             issues.append(item)
+            if failure_logger is not None:
+                failure_logger.write(item)
         advance()
 
     def record_updated(item: dict[str, Any]) -> None:
@@ -810,7 +868,8 @@ def main(argv: list[str] | None = None) -> int:
         "failure_reasons": dict(sorted(failure_reasons.items())),
         "items": issues,
     }
-    path = report_path(app, args.report)
+    if failure_logger is not None:
+        failure_logger.close()
     write_json(path, report)
 
     print(
