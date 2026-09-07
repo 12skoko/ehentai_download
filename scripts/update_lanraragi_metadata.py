@@ -12,11 +12,13 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from queue import Queue
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -53,6 +55,22 @@ class DatabaseEntry:
     info: MangaInfo | None
 
 
+@dataclass(frozen=True)
+class MetadataUpdateJob:
+    archive_id: str
+    info: MangaInfo
+    expected: dict[str, str]
+    item: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class MetadataVerificationJob:
+    ready_at: float
+    archive_id: str
+    expected: dict[str, str]
+    item: dict[str, Any]
+
+
 class ProgressBar:
     """Small dependency-free terminal progress bar for long metadata repairs."""
 
@@ -64,6 +82,12 @@ class ProgressBar:
 
     def update(self, *, candidates: int, updated: int, failed: int, skipped: int) -> None:
         self.current += 1
+        self.render(candidates=candidates, updated=updated, failed=failed, skipped=skipped)
+
+    def refresh(self, *, candidates: int, updated: int, failed: int, skipped: int) -> None:
+        self.render(candidates=candidates, updated=updated, failed=failed, skipped=skipped)
+
+    def render(self, *, candidates: int, updated: int, failed: int, skipped: int) -> None:
         width = 32
         done = min(self.current, self.total)
         ratio = done / self.total if self.total else 1.0
@@ -89,13 +113,15 @@ class RequestPacer:
     def __init__(self, interval: float) -> None:
         self.interval = max(0.0, interval)
         self.next_allowed_at = 0.0
+        self.lock = threading.Lock()
 
     def wait(self) -> None:
-        now = time.monotonic()
-        delay = self.next_allowed_at - now
-        if delay > 0:
-            time.sleep(delay)
-        self.next_allowed_at = time.monotonic() + self.interval
+        with self.lock:
+            now = time.monotonic()
+            delay = self.next_allowed_at - now
+            if delay > 0:
+                time.sleep(delay)
+            self.next_allowed_at = time.monotonic() + self.interval
 
 
 def _retry_delay(backoff: float, attempt: int) -> float:
@@ -411,6 +437,12 @@ def main(argv: list[str] | None = None) -> int:
         default=1.0,
         help="initial retry backoff in seconds (default: 1.0)",
     )
+    parser.add_argument(
+        "--verify-delay",
+        type=float,
+        default=5.0,
+        help="seconds to wait after a successful PUT before GET verification (default: 5)",
+    )
     parser.add_argument("--report", help="write the JSON report to this path")
     args = parser.parse_args(argv)
     if args.limit is not None and args.limit < 0:
@@ -423,10 +455,17 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--retry-attempts must be positive")
     if args.retry_backoff < 0:
         parser.error("--retry-backoff must be non-negative")
+    if args.verify_delay < 0:
+        parser.error("--verify-delay must be non-negative")
 
     app, _, _, secrets = load_config(args.config_dir)
     database = Database(app.database_url)
     api = LANraragiApiGateway(
+        app.lanraragi_url,
+        headers=secrets.lanraragi,
+        timeout=args.timeout,
+    )
+    verify_api = LANraragiApiGateway(
         app.lanraragi_url,
         headers=secrets.lanraragi,
         timeout=args.timeout,
@@ -499,7 +538,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.apply:
         print(
             f"Request interval: {args.request_interval:.2f}s; "
-            f"retry attempts: {args.retry_attempts}"
+            f"retry attempts: {args.retry_attempts}; "
+            f"PUT-to-GET verification delay: {args.verify_delay:.1f}s; "
+            "pipeline: 1 PUT worker + 1 GET worker"
         )
 
     counters = {
@@ -514,14 +555,170 @@ def main(argv: list[str] | None = None) -> int:
     issues: list[dict[str, Any]] = []
     progress = ProgressBar(len(archives), app.timezone)
     pacer = RequestPacer(args.request_interval)
+    state_lock = threading.Lock()
+    progress_lock = threading.Lock()
+    put_queue: Queue[MetadataUpdateJob | None] = Queue()
+    verify_queue: Queue[MetadataVerificationJob | None] = Queue()
 
     def advance() -> None:
-        progress.update(
-            candidates=counters["candidates"],
-            updated=counters["updated"],
-            failed=counters["failed"],
-            skipped=counters["skipped"],
+        with progress_lock:
+            progress.update(
+                candidates=counters["candidates"],
+                updated=counters["updated"],
+                failed=counters["failed"],
+                skipped=counters["skipped"],
+            )
+
+    def refresh_progress() -> None:
+        with progress_lock:
+            progress.refresh(
+                candidates=counters["candidates"],
+                updated=counters["updated"],
+                failed=counters["failed"],
+                skipped=counters["skipped"],
+            )
+
+    def record_failure(
+        item: dict[str, Any],
+        *,
+        result: str,
+        error_code: str | None,
+        status_code: int | None = None,
+        error: str = "",
+    ) -> None:
+        with state_lock:
+            counters["failed"] += 1
+            item["result"] = result
+            item["error_code"] = error_code
+            if status_code is not None:
+                item["status_code"] = status_code
+            if error:
+                item["error"] = error[:1000]
+            reason = error_code or f"http_{status_code}"
+            failure_reasons[reason] += 1
+            issues.append(item)
+        refresh_progress()
+
+    def record_updated(item: dict[str, Any]) -> None:
+        with state_lock:
+            counters["updated"] += 1
+            item["result"] = "updated"
+            issues.append(item)
+        refresh_progress()
+
+    def put_worker() -> None:
+        while True:
+            job = put_queue.get()
+            try:
+                if job is None:
+                    return
+                try:
+                    outcome = _metadata_update_with_retry(
+                        api,
+                        job.archive_id,
+                        job.info,
+                        job.expected,
+                        pacer=pacer,
+                        attempts=args.retry_attempts,
+                        backoff=args.retry_backoff,
+                        timezone=app.timezone,
+                    )
+                except Exception as exc:  # noqa: BLE001 - one bad archive must not stop the batch
+                    record_failure(
+                        job.item,
+                        result="failed",
+                        error_code=type(exc).__name__,
+                        error=str(exc),
+                    )
+                    continue
+
+                if outcome.kind != "success":
+                    record_failure(
+                        job.item,
+                        result="failed",
+                        error_code=outcome.error_code,
+                        status_code=outcome.status_code,
+                        error=outcome.response or "",
+                    )
+                    continue
+
+                verify_queue.put(
+                    MetadataVerificationJob(
+                        ready_at=time.monotonic() + args.verify_delay,
+                        archive_id=job.archive_id,
+                        expected=job.expected,
+                        item=job.item,
+                    )
+                )
+            finally:
+                put_queue.task_done()
+
+    def verify_worker() -> None:
+        while True:
+            job = verify_queue.get()
+            try:
+                if job is None:
+                    return
+                delay = job.ready_at - time.monotonic()
+                if delay > 0:
+                    time.sleep(delay)
+
+                try:
+                    verify_status, payload = _metadata_with_retry(
+                        verify_api,
+                        job.archive_id,
+                        pacer=pacer,
+                        attempts=args.retry_attempts,
+                        backoff=args.retry_backoff,
+                        timezone=app.timezone,
+                    )
+                    verified = verify_status == 200 and metadata_matches(
+                        payload, job.expected
+                    )
+                except Exception as exc:  # noqa: BLE001 - report verification failure and continue
+                    verified = False
+                    verify_status = None
+                    job.item["error"] = str(exc)[:1000]
+
+                if verified:
+                    record_updated(job.item)
+                    continue
+
+                job.item.setdefault(
+                    "error",
+                    "LANraragi metadata did not match the generated metadata after update",
+                )
+                if verify_status is None:
+                    failure_reason = "verification_exception"
+                elif verify_status != 200:
+                    failure_reason = f"verification_http_{verify_status}"
+                else:
+                    failure_reason = "verification_mismatch"
+                record_failure(
+                    job.item,
+                    result="failed_verification",
+                    error_code=failure_reason,
+                    status_code=verify_status,
+                    error=str(job.item["error"]),
+                )
+            finally:
+                verify_queue.task_done()
+
+    put_thread: threading.Thread | None = None
+    verify_thread: threading.Thread | None = None
+    if args.apply:
+        verify_thread = threading.Thread(
+            target=verify_worker,
+            name="lanraragi-metadata-verify",
+            daemon=True,
         )
+        put_thread = threading.Thread(
+            target=put_worker,
+            name="lanraragi-metadata-put",
+            daemon=True,
+        )
+        verify_thread.start()
+        put_thread.start()
 
     for archive in archives:
         counters["scanned"] += 1
@@ -589,79 +786,27 @@ def main(argv: list[str] | None = None) -> int:
             advance()
             continue
 
-        try:
-            # Use the ID returned by the current LANraragi listing.  The
-            # database ID is the preferred mapping key, but tag-based fallback
-            # mapping may recover from a stale database archive ID.
-            outcome = _metadata_update_with_retry(
-                api,
-                archive_id,
-                entry.info,
-                expected,
-                pacer=pacer,
-                attempts=args.retry_attempts,
-                backoff=args.retry_backoff,
-                timezone=app.timezone,
+        # The PUT worker can continue with the next archive while the GET
+        # worker waits for this archive's delayed verification window.
+        put_queue.put(
+            MetadataUpdateJob(
+                archive_id=archive_id,
+                info=entry.info,
+                expected=expected,
+                item=item,
             )
-        except Exception as exc:  # noqa: BLE001 - one bad archive must not stop the batch
-            counters["failed"] += 1
-            item["result"] = "failed"
-            item["error_code"] = type(exc).__name__
-            item["error"] = str(exc)[:1000]
-            failure_reasons[item["error_code"]] += 1
-            issues.append(item)
-            advance()
-            continue
-
-        if outcome.kind != "success":
-            counters["failed"] += 1
-            item["result"] = "failed"
-            item["error_code"] = outcome.error_code
-            item["status_code"] = outcome.status_code
-            item["error"] = (outcome.response or "")[:1000]
-            failure_reasons[item["error_code"] or f"http_{outcome.status_code}"] += 1
-            issues.append(item)
-            advance()
-            continue
-
-        try:
-            verify_status, payload = _metadata_with_retry(
-                api,
-                archive_id,
-                pacer=pacer,
-                attempts=args.retry_attempts,
-                backoff=args.retry_backoff,
-                timezone=app.timezone,
-            )
-            verified = verify_status == 200 and metadata_matches(payload, expected)
-        except Exception as exc:  # noqa: BLE001 - report verification failure and continue
-            verified = False
-            verify_status = None
-            item["error"] = str(exc)[:1000]
-        if not verified:
-            counters["failed"] += 1
-            item["result"] = "failed_verification"
-            item["status_code"] = verify_status
-            item.setdefault(
-                "error",
-                "LANraragi metadata did not match the generated metadata after update",
-            )
-            failure_reason = (
-                type(item["error"]).__name__
-                if not isinstance(item["error"], str)
-                else f"verification_http_{verify_status}"
-                if verify_status is not None
-                else "verification_exception"
-            )
-            failure_reasons[failure_reason] += 1
-            issues.append(item)
-            advance()
-            continue
-
-        counters["updated"] += 1
-        item["result"] = "updated"
-        issues.append(item)
+        )
         advance()
+
+    if args.apply:
+        put_queue.put(None)
+        put_queue.join()
+        assert put_thread is not None
+        assert verify_thread is not None
+        put_thread.join()
+        verify_queue.put(None)
+        verify_queue.join()
+        verify_thread.join()
 
     progress.finish()
 
