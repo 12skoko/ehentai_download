@@ -200,8 +200,9 @@ class LANraragiApiGateway:
         response = self._request(
             "get",
             f"{self.base_url}/api/archives/{archive_id}/metadata",
-            headers=self.headers,
+            headers={"Accept": "application/json", **self.headers},
             timeout=self.timeout,
+            allow_redirects=False,
         )
         return int(response.status_code), self._payload(response)
 
@@ -212,15 +213,20 @@ class LANraragiApiGateway:
         *,
         metadata: Mapping[str, str] | None = None,
     ) -> UploadOutcome:
+        request_headers = {"Accept": "application/json", **self.headers}
         response = self._request(
             "put",
             f"{self.base_url}/api/archives/{archive_id}/metadata",
             params=dict(metadata) if metadata is not None else self.metadata_values(info),
-            headers=self.headers,
+            headers=request_headers,
             timeout=self.timeout,
+            allow_redirects=False,
         )
         status = int(response.status_code)
         body = self._body(response)
+        location = str((getattr(response, "headers", {}) or {}).get("Location") or "")
+        if location:
+            body = f"redirect_location: {location}\n{body}"
         payload = self._payload(response)
         if status == 200 and payload is not None and payload.get("success") in {1, "1"}:
             return UploadOutcome("success", archive_id, status, body)
@@ -230,6 +236,10 @@ class LANraragiApiGateway:
             )
         if status in RETRYABLE_HTTP_STATUSES:
             return UploadOutcome("retry", archive_id, status, body, f"lrr_metadata_{status}")
+        if status == 200 and payload is None:
+            return UploadOutcome(
+                "review", archive_id, status, body, "lrr_metadata_non_json_response"
+            )
         return UploadOutcome("review", archive_id, status, body, "lrr_metadata_update_failed")
 
     @staticmethod
