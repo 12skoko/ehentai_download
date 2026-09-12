@@ -43,7 +43,7 @@ AGENTS.md
 
 
 db.text.json
-config.py
+/config.py
 config_picacg.py
 full_collect_log.txt
 checkpoint.txt
