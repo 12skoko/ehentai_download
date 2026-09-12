@@ -61,6 +61,7 @@ class ConfigField:
     help: str
     value: str
     checked: bool = False
+    policy: str = ""
 
 
 @dataclass(frozen=True)
@@ -78,12 +79,13 @@ class ConfigUpdateResult:
     filename: str
     changed_fields: tuple[str, ...]
     restart: str
+    candidate: str | None = None
 
 
 APP_FIELDS = (
     FieldSpec(("timezone",), "时区"),
     FieldSpec(("log_level",), "日志级别", "choice", options=("DEBUG", "INFO", "WARNING", "ERROR")),
-    FieldSpec(("log_dir",), "日志目录", editable=False),
+    FieldSpec(("log_dir",), "日志目录"),
     FieldSpec(
         ("upload_backend",),
         "LANraragi 上传后端",
@@ -95,10 +97,9 @@ APP_FIELDS = (
     FieldSpec(
         ("web_host",),
         "Web 监听地址",
-        editable=False,
-        help="修改监听地址需要在服务器上直接编辑并重启 Web。",
+        help="",
     ),
-    FieldSpec(("web_port",), "Web 端口", "int", editable=False),
+    FieldSpec(("web_port",), "Web 端口", "int", minimum=1),
     FieldSpec(("qbittorrent_url",), "qBittorrent 地址", editable=False),
     FieldSpec(("qbit_torrent_path",), "qBittorrent 下载路径", editable=False),
     FieldSpec(("lanraragi_url",), "LANraragi 地址", editable=False),
@@ -223,8 +224,29 @@ VIDEO_ARCHIVE_FIELDS = (
 _SECTION_META = {
     "app": ("应用配置", "Web 和 Supervisor", APP_FIELDS),
     "supervisor": ("调度配置", "Supervisor", SUPERVISOR_FIELDS),
-    "crawl": ("采集配置", "Supervisor", CRAWL_FIELDS),
+    "crawl": ("采集配置", "next_worker", CRAWL_FIELDS),
 }
+
+
+def field_policy(section: str, field: str) -> str:
+    if section == "crawl":
+        return "next_worker"
+    if section == "supervisor":
+        return "supervisor"
+    if section == "video_archive":
+        return "supervisor" if field in {"enabled", "work__max_concurrency"} else "next_worker"
+    if field in {"web_host", "web_port"}:
+        return "web"
+    if field in {"database_url", "timezone", "log_level", "log_dir"} or field.startswith("roots__"):
+        return "web_and_supervisor"
+    return "supervisor"
+
+
+def merged_policy(section: str, fields) -> str:
+    policies = {field_policy(section, name) for name in fields}
+    if "web_and_supervisor" in policies or {"web", "supervisor"} <= policies:
+        return "web_and_supervisor"
+    return next((p for p in ("web", "supervisor") if p in policies), "next_worker")
 
 
 def load_config_sections(config_dir: str | Path) -> tuple[ConfigSection, ...]:
@@ -248,7 +270,10 @@ def load_config_sections(config_dir: str | Path) -> tuple[ConfigSection, ...]:
     for name, (title, restart, specs) in section_meta.items():
         path = config_dir / CONFIG_FILENAMES[name]
         raw = path.read_bytes() if path.exists() else b""
-        fields = tuple(_field_view(spec, _nested_value(values[name], spec.path)) for spec in specs)
+        from dataclasses import replace
+
+        fields = tuple(replace(_field_view(spec, _nested_value(values[name], spec.path)),
+                               policy=field_policy(name, spec.name)) for spec in specs)
         sections.append(
             ConfigSection(
                 name=name,
@@ -268,6 +293,7 @@ def update_config_section(
     values: Mapping[str, Any],
     *,
     revision: str,
+    publish: bool = True,
 ) -> ConfigUpdateResult:
     section_meta = dict(_SECTION_META)
     section_meta["video_archive"] = (
@@ -310,13 +336,15 @@ def update_config_section(
             changed.append(spec.name)
 
         if not changed:
-            return ConfigUpdateResult(filename, (), restart)
+            return ConfigUpdateResult(filename, (), "next_worker")
         candidate = tomlkit.dumps(document)
         _validate_candidate(config_dir, filename, candidate)
         if _revision(path.read_bytes()) != revision:
             raise ConfigurationConflict("配置文件已经被其他操作修改，请刷新页面后重试")
-        _atomic_replace(path, candidate)
-    return ConfigUpdateResult(filename, tuple(changed), restart)
+        if publish:
+            _atomic_replace(path, candidate)
+    return ConfigUpdateResult(filename, tuple(changed),
+                              merged_policy(section_name, changed), candidate)
 
 
 def _app_values(config) -> dict[str, Any]:
@@ -576,10 +604,20 @@ def _validate_candidate(config_dir: Path, filename: str, content: str) -> None:
                 if source.is_file():
                     (check_dir / source_name).parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(source, check_dir / source_name)
+            if (config_dir / "secrets.toml").is_file():
+                shutil.copyfile(config_dir / "secrets.toml", check_dir / "secrets.toml")
             (check_dir / filename).parent.mkdir(parents=True, exist_ok=True)
-            (check_dir / filename).write_text(content, encoding="utf-8")
-            load_config(check_dir)
-            if filename == CONFIG_FILENAMES["video_archive"]:
+            (check_dir / filename).write_bytes(content.encode("utf-8"))
+            app, _, _, secrets = load_config(check_dir)
+            if not 1 <= app.web_port <= 65535:
+                raise ValueError("Web port must be between 1 and 65535")
+            from .auth import valid_password_hash
+            if secrets.web_password_hash:
+                if not valid_password_hash(secrets.web_password_hash) or not secrets.web_secret:
+                    raise ValueError("Web authentication configuration is invalid")
+            elif app.web_host.casefold() not in {"localhost", "127.0.0.1", "::1"}:
+                raise ValueError("Web login is required before listening outside localhost")
+            if (check_dir / CONFIG_FILENAMES["video_archive"]).is_file():
                 load_video_archive_config(check_dir)
     except (OSError, TypeError, ValueError) as exc:
         raise ConfigurationError(f"配置校验失败：{exc}") from exc

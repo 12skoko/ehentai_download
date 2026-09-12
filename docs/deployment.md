@@ -6,24 +6,43 @@ EH Archive uses one PostgreSQL database and two long-running processes:
   file deletion.
 * `eharchive-supervisor` owns scheduling and starts bounded task subprocesses.
 
-Create a fresh virtual environment on every host; do not copy `.venv` between
+Create the Conda environment on each host; do not copy an environment between
 Windows and Linux:
 
 ```text
-python -m venv .venv
-.venv/bin/pip install -e .
-.venv/bin/eharchive --config-dir config db upgrade
+conda activate eh
+python -m pip install -e .
+eharchive --config-dir config db upgrade
+eharchive --config-dir config service install
 ```
 
-On Windows use `.venv\Scripts\python.exe` and register the Web and Supervisor
-commands with Task Scheduler, NSSM, or WinSW. On Linux use two systemd units
-whose `ExecStart` values point at the same virtual environment. Both services
-must use the same `config/` and PostgreSQL URL.
+`service install` requires Linux, systemd, Git and root. Run it from the repository,
+on the branch to deploy, with an upstream remote configured for the same branch.
+It records the current Python executable and absolute paths in
+`/etc/eharchive/management.toml`, creates Web, Supervisor and operation-template
+units, verifies them, and reloads systemd. No service is enabled or started.
+Add `--start` to submit a start operation immediately.
 
-The repository currently provides deployment guidance only; it does not ship
-ready-to-install systemd units, Windows service definitions, PostgreSQL
-backup/restore automation, or built-in log rotation. Configure these with the
-host operating system and test them before production cutover.
+Use `eharchive service start all` or native `systemctl start eharchive-web
+eharchive-supervisor`. Stop previous screen/manual processes before handing over
+to systemd. Services remain stopped after a host reboot. `service repair`
+regenerates units from the management configuration; `service uninstall` requires
+stopped services and preserves management configuration and operation history.
+Windows can run ordinary Web/Worker processes, but system management and managed
+configuration publication require a Linux installation. PostgreSQL backup and
+log rotation remain host administration responsibilities.
+
+The fixed deployment lock is `/run/eharchive/deployment.lock`. Do not delete or
+replace it while processes are running. Operation history lives under
+`<app.log_dir>/management/history`; changing `log_dir` does not move the lock.
+The management configuration retains old history locations so in-progress
+operation links remain readable after a directory change.
+
+Units run as root because deployment paths can be under `/root`. Configure Web
+authentication before exposing the listener. The system page controls only
+EH Archive units and the registered Git branch; it is not a general shell.
+Verify installation, drain/cancel, stopped-service preservation and restart
+health checks on the Linux deployment host before production use.
 
 Every `roots` value and `log_dir` in `config/app.toml` must be an absolute
 directory. They may be UNC paths on Windows or mounted paths on Linux; relative

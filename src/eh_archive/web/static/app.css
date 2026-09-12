@@ -333,3 +333,19 @@ pre { max-height: 350px; overflow: auto; padding: .8rem; color: #d8e5ec; border-
   input, select, textarea { border-color: #3b505d; }
   .login-body { background: radial-gradient(circle at 50% 15%, #183442, var(--bg) 45%); }
 }
+
+[data-system-dashboard] section,
+[data-operation-detail] { min-width: 0; padding: 1rem 0; border-bottom: 1px solid var(--line); }
+[data-system-dashboard] section { overflow-x: auto; }
+[data-system-dashboard] pre,
+[data-operation-detail] pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 30rem; overflow-y: auto; }
+[data-operation-detail] dd { overflow-wrap: anywhere; }
+[data-system-dashboard] dl,
+[data-operation-detail] dl { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: .5rem 1rem; }
+[data-system-dashboard] dd,
+[data-operation-detail] dd { margin: 0; overflow-wrap: anywhere; }
+[data-service] [data-status],
+[data-service] [data-pid] { white-space: nowrap; }
+[data-system-dashboard] td button { margin: .15rem; min-height: 2.5rem; }
+.config-policy-field { min-width: 0; display: grid; gap: .35rem; align-content: start; }
+.config-policy { color: var(--muted); }

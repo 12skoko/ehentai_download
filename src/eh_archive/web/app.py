@@ -15,7 +15,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from ..config import load_config
 from ..config.loader import SUPERVISOR_MODULES
 from ..db import Database
-from ..db.models import EventLog, MangaRecord, SystemControl, SystemHealth
+from ..db.models import MangaRecord, SystemControl, SystemHealth
 from ..logging import configure_logging
 from ..services.paths import safe_filename
 from ..special.remarks import PHASE_LABELS, user_remark
@@ -41,7 +41,6 @@ from .configuration import (
     ConfigurationConflict,
     ConfigurationError,
     load_config_sections,
-    update_config_section,
 )
 from .services import (
     COMPONENT_LABELS,
@@ -82,7 +81,8 @@ def _filter_query(params: list[tuple[str, str]]) -> str:
     return urlencode(params)
 
 
-def create_app(database: Database | None = None, *, config_dir: str | Path = "config"):
+def create_app(database: Database | None = None, *, config_dir: str | Path = "config",
+               management_config: str | Path = "/etc/eharchive/management.toml"):
     try:
         from fastapi import Body, FastAPI, HTTPException, Query
         from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -464,36 +464,24 @@ def create_app(database: Database | None = None, *, config_dir: str | Path = "co
     async def update_config_page(request: Request, section_name: str):
         form = await _validated_form(request)
         try:
-            result = update_config_section(
-                config_dir,
-                section_name,
-                form,
-                revision=str(form.get("revision", "")),
+            from ..management.configuration import stage
+            from ..management.service import submit
+
+            result = submit(
+                "apply_config", _actor(request), management_path=Path(management_config),
+                prepare=lambda config, operation: stage(
+                    config, operation, section_name, form, str(form.get("revision", "")),
+                ),
             )
         except ConfigurationConflict as exc:
             return _error_response(request, templates, Conflict(str(exc)))
         except ConfigurationError as exc:
             return _error_response(request, templates, InvalidRequest(str(exc)))
-        if result.changed_fields:
-            with database.session() as session:
-                session.add(
-                    EventLog(
-                        manga_id=None,
-                        component="web",
-                        event_type="manual",
-                        operation="config_update",
-                        actor=_actor(request),
-                        detail={
-                            "file": result.filename,
-                            "fields": list(result.changed_fields),
-                            "restart_required": result.restart,
-                        },
-                    )
-                )
-        notice_value = "saved" if result.changed_fields else "unchanged"
+        if request.headers.get("accept") == "application/json":
+            return JSONResponse(result, status_code=202)
         return _redirect_response(
             request,
-            f"/config?notice={notice_value}&updated_file={quote(result.filename)}",
+            f"/system/operations/{result['id']}",
         )
 
     @app.get("/special", response_class=HTMLResponse)
@@ -941,8 +929,10 @@ def create_app(database: Database | None = None, *, config_dir: str | Path = "co
     @app.post("/control/{component}")
     async def control_page(request: Request, component: str):
         form = await _validated_form(request)
+        from ..management.service import control_guard
+
         try:
-            with database.session() as session:
+            with control_guard(component, Path(management_config)), database.session() as session:
                 control = WebService(session, actor=_actor(request)).set_control(
                     component,
                     state=str(form.get("state", "")),
@@ -1143,9 +1133,11 @@ def create_app(database: Database | None = None, *, config_dir: str | Path = "co
 
     @app.put("/api/control/{component}")
     def api_control(request: Request, component: str, payload=control_body):
+        from ..management.service import control_guard
+
         try:
             value = ControlUpdate(**payload)
-            with database.session() as session:
+            with control_guard(component, Path(management_config)), database.session() as session:
                 row = WebService(session, actor=_actor(request)).set_control(
                     component,
                     state=value.state,
@@ -1163,6 +1155,9 @@ def create_app(database: Database | None = None, *, config_dir: str | Path = "co
         except (TypeError, ValueError) as exc:
             raise HTTPException(422, f"invalid control payload: {exc}") from exc
 
+    from .management import register
+
+    register(app, templates, _context, database, Path(management_config))
     return app
 
 

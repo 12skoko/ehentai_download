@@ -27,6 +27,7 @@ from ..logging import (
     configure_logging,
     get_logger,
     session_log_path,
+    special_job_log_path,
 )
 from ..special import SpecialRepository
 from ..special.handlers import enabled_module_capabilities
@@ -606,6 +607,8 @@ class Supervisor:
                         str(claim.job_id),
                         "--workflow-id",
                         str(claim.workflow_id),
+                        "--kind",
+                        claim.kind,
                         "--lease-token",
                         claim.lease_token,
                         "--lease-owner",
@@ -616,9 +619,11 @@ class Supervisor:
                         self.run_id,
                         "--log-path",
                         str(
-                            session_log_path(
+                            special_job_log_path(
                                 self.app.log_dir,
-                                f"special-{claim.job_id}",
+                                claim.kind,
+                                workflow_id=claim.workflow_id,
+                                job_id=claim.job_id,
                                 timezone=self.app.timezone,
                                 run_id=self.run_id,
                             )

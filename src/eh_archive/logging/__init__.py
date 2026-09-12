@@ -12,6 +12,7 @@ from .structured import (
     configure_logging,
     get_logger,
     session_log_path,
+    special_job_log_path,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "format_report_size",
     "get_logger",
     "session_log_path",
+    "special_job_log_path",
 ]

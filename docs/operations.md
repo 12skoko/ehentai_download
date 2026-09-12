@@ -1,5 +1,45 @@
 # Operations
 
+## Deployment Management
+
+After `eharchive service install`, `/system` shows service state, workers, Git
+status and operation history. Configuration forms submit staged `apply_config`
+operations instead of writing live files in the HTTP request. Operations run in
+independent `eharchive-operation@<uuid>.service` instances and persist JSON state,
+events, configuration revisions/backups and command output on disk.
+
+```text
+eharchive service status
+eharchive service restart supervisor
+eharchive service stop all
+eharchive update check
+eharchive update apply
+eharchive operation list
+eharchive operation show <uuid>
+eharchive operation cancel <uuid>
+eharchive service logs operation
+```
+
+Commands that change services return the operation ID without waiting for drain.
+Drain has no default timeout; only the owning executor processes cancellation.
+No force-stop/restart action exists. A stuck worker requires manual diagnosis.
+`crawl.toml` changes affect the next worker, while configuration publications
+restart affected running services and restore the previous Supervisor control
+state. A configuration startup failure restores the operation's own backup.
+
+Git updates require a clean worktree and a fast-forward on the installed branch.
+They install with the recorded Python, validate configuration, upgrade the
+database, refresh units and restore each service's original running/stopped
+state. Failures before migration restore old code/environment where necessary.
+Once migration starts, failure stops the update and requires manual inspection;
+no automatic database downgrade is attempted.
+
+If Web cannot start, inspect `journalctl -u eharchive-web`,
+`journalctl -u 'eharchive-operation@*.service'` and the operation log.
+After an executor or host crash, a stale operation is marked interrupted once
+its unit is confirmed inactive. A later operation can restore a staged
+configuration backup; Git updates are never automatically resumed.
+
 `GET /health` reports PostgreSQL reachability, Supervisor heartbeat, component
 pause state and status counts. A component can be paused with
 `PUT /api/control/{component}`; setting `supervisor` to `paused` prevents new

@@ -63,6 +63,26 @@ def session_log_path(
     return Path(log_dir) / safe_component / f"{started_at}_{identifier}.log"
 
 
+def special_job_log_path(
+    log_dir: str | Path,
+    kind: str,
+    *,
+    workflow_id: int,
+    job_id: int,
+    timezone: str = "UTC",
+    run_id: str | None = None,
+) -> Path:
+    """Return a per-job log path grouped by special module kind."""
+
+    safe_kind = re.sub(r"[^A-Za-z0-9_-]+", "_", kind).strip("_") or "unknown"
+    started_at = datetime.now(_load_timezone(timezone)).strftime("%Y%m%d_%H%M%S")
+    identifier = run_id or str(uuid.uuid4())
+    filename = (
+        f"{started_at}_workflow-{workflow_id}_job-{job_id}_{identifier}.log"
+    )
+    return Path(log_dir) / "special" / safe_kind / filename
+
+
 def configure_logging(
     level: str = "INFO",
     log_dir: str | Path | None = None,

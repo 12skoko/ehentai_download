@@ -14,7 +14,7 @@ from ..domain.errors import (
     ErrorClass,
     classify_exception,
 )
-from ..logging import configure_logging, get_logger, session_log_path
+from ..logging import configure_logging, get_logger, special_job_log_path
 from .handlers import build_executor
 from .repository import ClaimedSpecialJob, SpecialRepository
 
@@ -41,6 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="eharchive-special-worker")
     parser.add_argument("--job-id", type=int, required=True)
     parser.add_argument("--workflow-id", type=int, required=True)
+    parser.add_argument("--kind", default="unknown")
     parser.add_argument("--lease-token", required=True)
     parser.add_argument("--lease-owner", required=True)
     parser.add_argument("--config-dir", default="config")
@@ -62,9 +63,11 @@ def main(argv: list[str] | None = None) -> int:
         log_file=(
             Path(args.log_path)
             if args.log_path
-            else session_log_path(
+            else special_job_log_path(
                 app.log_dir,
-                f"special-{args.job_id}",
+                args.kind,
+                workflow_id=args.workflow_id,
+                job_id=args.job_id,
                 timezone=app.timezone,
                 run_id=run_id,
             )

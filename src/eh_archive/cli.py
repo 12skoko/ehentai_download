@@ -18,6 +18,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="eharchive")
     parser.add_argument("--config-dir", default="config")
     sub = parser.add_subparsers(dest="command", required=True)
+    from .management.cli import add_parsers
+
+    add_parsers(sub)
     db = sub.add_parser("db")
     db.add_argument("action", choices=("upgrade", "ping"))
     collect = sub.add_parser("collect")
@@ -61,6 +64,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command in {"service", "update", "operation"}:
+        from .management.cli import run
+
+        return run(args)
     if args.command == "web-password":
         from getpass import getpass
 

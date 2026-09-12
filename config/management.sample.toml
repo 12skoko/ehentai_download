@@ -1,0 +1,24 @@
+[deployment]
+repository = "/root/ehentai"
+config_dir = "/root/ehentai/config"
+python = "/root/miniconda3/envs/eh/bin/python"
+management_dir = "/root/eharchive-data/log/management"
+history_dirs = []
+
+[git]
+remote = "origin"
+branch = "main"
+require_clean_worktree = true
+fast_forward_only = true
+
+[systemd]
+web_unit = "eharchive-web.service"
+supervisor_unit = "eharchive-supervisor.service"
+operation_unit_template = "eharchive-operation@.service"
+
+[health]
+web_live_url = "http://127.0.0.1:8787/health/live"
+web_start_timeout_seconds = 60
+supervisor_start_timeout_seconds = 60
+supervisor_drain_timeout_seconds = 0
+poll_seconds = 2

@@ -695,3 +695,18 @@ python scripts/reconcile_migration.py \
 ```
 
 测试和 `db upgrade` 都应在与实际服务相同的 Python 环境中执行。真实 qBittorrent、LANraragi、EH Cookie/代理和 PostgreSQL 联调仍需要对应服务可用，单元测试不会替代这些外部依赖检查。
+# 系统管理与更新
+
+Linux 上激活 `eh` 环境后，在仓库目录运行
+`eharchive --config-dir config service install`，自动生成管理配置和 systemd unit。
+安装默认不启动、不设置开机自启；使用 `service start all` 启动。
+
+Web 的“系统”页面提供服务控制、更新检查、更新执行和操作历史。
+配置页面提交的是配置发布操作，可在详情页查看修改字段、生效范围和日志。
+`crawl.toml` 由下一次 Worker 读取，其他字段按各自范围重启受影响的运行中服务。
+修改日志目录后，锁仍固定使用 `/run/eharchive/deployment.lock`。
+
+`eharchive update check` 检查登记的 Git 分支，`eharchive update apply` 提交更新。
+更新结束后，原来运行的服务恢复运行，原来停止的保持停止。
+drain 可以取消，但没有强制停止并重启功能。迁移失败或 Web 无法启动时，
+通过 `eharchive operation show <操作ID>`、`journalctl` 和操作日志手工排查。
