@@ -10,6 +10,14 @@ Create the Conda environment on each host; do not copy an environment between
 Windows and Linux:
 
 ```text
+mkdir -p config
+cp config.sample/app.toml config.sample/supervisor.toml config.sample/crawl.toml config.sample/secrets.toml config/
+```
+
+The tracked templates live in `config.sample/`; the entire runtime `config/`
+directory is ignored by Git. Edit the copied files before installing services.
+
+```text
 conda activate eh
 python -m pip install -e .
 eharchive --config-dir config db upgrade
@@ -52,7 +60,7 @@ requires editing `config/app.toml`.
 
 ## Video archive special processing
 
-Copy `config/special/video_archive.sample.toml` to
+Copy `config.sample/special/video_archive.toml` to
 `config/special/video_archive.toml` and create the configured workspace.
 The module reuses `app.qbit_torrent_path` as the path qBittorrent sees and
 `app.roots.torrent_download` as the local/mounted path that reaches the same

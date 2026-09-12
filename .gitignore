@@ -16,16 +16,7 @@ tests/
 .agents/
 .vscode/
 
-config/runtime.toml
-config/private.toml
-config/app.toml
-config/supervisor.toml
-config/crawl.toml
-config/secrets.toml
-config/migration.toml
-config/special/*.toml
-config/special/*.toml.bak
-!config/special/*.sample.toml
+/config/
 *.db
 .pytest_cache/
 dist/

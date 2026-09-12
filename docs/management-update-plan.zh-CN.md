@@ -234,7 +234,31 @@ Executor 统一使用固定路径 `/run/eharchive/deployment.lock` 的 `flock` �
 
 ## 6. 配置生效模型
 
-不增加 `web.toml`。继续使用：
+仓库模板与真实配置按目录分离：
+
+```text
+config.sample/                 # Git 跟踪的业务配置模板
+├── app.toml
+├── supervisor.toml
+├── crawl.toml
+├── secrets.toml
+├── migration.toml
+└── special/
+    └── video_archive.toml
+
+config/                        # Git 整体忽略的真实配置
+├── app.toml
+├── supervisor.toml
+├── crawl.toml
+├── secrets.toml
+├── migration.toml
+└── special/
+    └── video_archive.toml
+```
+
+管理配置不属于业务配置目录：仓库参考模板放在 `deployment/management.sample.toml`，真实文件继续由安装程序生成到 `/etc/eharchive/management.toml`。
+
+不增加 `web.toml`。运行时继续使用：
 
 ```text
 app.toml
@@ -697,7 +721,7 @@ POST /api/system/operations/{id}/cancel
 预计新增：
 
 ```text
-config/management.sample.toml
+deployment/management.sample.toml
 src/eh_archive/management/__init__.py
 src/eh_archive/management/config.py
 src/eh_archive/management/state.py

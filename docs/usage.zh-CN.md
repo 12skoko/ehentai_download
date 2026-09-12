@@ -125,17 +125,21 @@ python3.11 -m venv .venv
 
 ### 4.1 创建本地配置文件
 
-仓库只保存 `*.sample.toml` 模板，实际运行配置使用同名 `.toml` 文件并由 `.gitignore` 忽略。首次配置时先复制四个模板：
+仓库中的配置模板统一保存在 `config.sample/`，真实运行配置统一保存在 `config/`。Git 跟踪前者并整体忽略后者，因此以后增加真实配置文件时不需要继续修改 `.gitignore`。首次配置时创建真实配置目录并复制四个必要模板：
 
 ```powershell
-Copy-Item 'config\app.sample.toml' 'config\app.toml'
-Copy-Item 'config\supervisor.sample.toml' 'config\supervisor.toml'
-Copy-Item 'config\crawl.sample.toml' 'config\crawl.toml'
-Copy-Item 'config\secrets.sample.toml' 'config\secrets.toml'
-Copy-Item 'config\special\video_archive.sample.toml' 'config\special\video_archive.toml'
+New-Item -ItemType Directory -Force 'config' | Out-Null
+Copy-Item 'config.sample\app.toml','config.sample\supervisor.toml','config.sample\crawl.toml','config.sample\secrets.toml' 'config'
 ```
 
-然后编辑这些本地 `.toml` 文件。不使用视频特殊处理时可以不创建 `video_archive.toml`。`config/secrets.toml` 包含 Cookie、密码和 token，不能提交到 Git；`app.toml` 中的存储目录必须替换为实际绝对路径：
+如需视频特殊处理，再复制可选配置：
+
+```powershell
+New-Item -ItemType Directory -Force 'config\special' | Out-Null
+Copy-Item 'config.sample\special\video_archive.toml' 'config\special\video_archive.toml'
+```
+
+然后编辑这些本地 `.toml` 文件。不使用视频特殊处理时不要创建 `video_archive.toml`。`config/secrets.toml` 包含 Cookie、密码和 token，整个 `config/` 已被 Git 忽略；`app.toml` 中的存储目录必须替换为实际绝对路径：
 
 ```toml
 database_url = "postgresql+psycopg://user:password@127.0.0.1:5432/eh_archive"
@@ -612,7 +616,7 @@ Invoke-RestMethod -Method Put -Uri "$base/api/control/supervisor" `
 先创建迁移专用配置。它不是运行时配置，不会被主程序读取；复制后只在本机保留 `config/migration.toml`：
 
 ```powershell
-Copy-Item 'config\migration.sample.toml' 'config\migration.toml'
+Copy-Item 'config.sample\migration.toml' 'config\migration.toml'
 ```
 
 编辑 `config/migration.toml` 中的 `[mysql]` 和 `[postgres]`。用户名、密码、主机、端口和数据库名都是独立字段，不需要拼接 URL，也不需要编码密码。
@@ -647,7 +651,7 @@ python scripts\reconcile_migration.py `
 ```bash
 cd /home/ubuntu/ehentai_download_v6
 conda activate eh
-cp config/migration.sample.toml config/migration.toml
+cp config.sample/migration.toml config/migration.toml
 chmod 600 config/migration.toml
 
 python scripts/migrate_mysql_to_postgresql.py \

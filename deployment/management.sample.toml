@@ -1,3 +1,5 @@
+# Reference only. `eharchive --config-dir config service install` generates
+# the real file at /etc/eharchive/management.toml.
 [deployment]
 repository = "/root/ehentai"
 config_dir = "/root/ehentai/config"
