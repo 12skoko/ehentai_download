@@ -21,6 +21,11 @@
     git_update: "更新代码", apply_config: "应用配置"};
   const label = value => labels[value] || value || "-";
   const date = value => value ? new Date(value).toLocaleString("zh-CN") : "-";
+  const commitLabel = (hash, message, fallback = "-") => {
+    if (!hash) return fallback;
+    const shortHash = hash.slice(0, 7);
+    return message ? shortHash + " · " + message : shortHash;
+  };
   let identifier = root.dataset.operationDetail;
   let cancel;
   let polling = false;
@@ -163,7 +168,9 @@
     text("operation-status", label(operation.status));
     text("operation-phase", operation.failed_phase || operation.phase);
     text("operation-error", operation.error || "");
-    text("operation-commits", [operation.old_commit, operation.target_commit].filter(Boolean).join(" → "));
+    const oldCommit = commitLabel(operation.old_commit, operation.old_commit_message);
+    const targetCommit = commitLabel(operation.target_commit, operation.target_commit_message, "尚未获取");
+    text("operation-commits", [oldCommit, targetCommit].filter(Boolean).join(" → "));
     text("operation-configuration", operation.configuration || "");
     text("operation-events", operation.events || "");
     text("operation-log", operation.log || "");
@@ -189,7 +196,8 @@
     if (!list) return;
     list.replaceChildren();
     for (const [name, content] of [["分支", value.branch], ["远端", value.remote],
-      ["当前版本", value.old_commit], ["目标版本", value.target_commit || "尚未获取"],
+      ["当前版本", commitLabel(value.old_commit, value.old_commit_message)],
+      ["目标版本", commitLabel(value.target_commit, value.target_commit_message, "尚未获取")],
       ["工作区", value.dirty ? "有未提交修改" : "干净"],
       ["更新", value.available ? (value.fast_forward ? "可更新" : "无法快进更新") : "无可用更新"]]) {
       const term = document.createElement("dt");

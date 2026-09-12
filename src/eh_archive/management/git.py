@@ -30,6 +30,7 @@ class GitRepository:
         if fetch:
             self.run("fetch", "--prune", self.config.remote, timeout=300)
         old = self.run("rev-parse", "--verify", "HEAD^{commit}")
+        old_message = self.run("show", "-s", "--format=%s", old)
         reference = f"refs/remotes/{self.config.remote}/{self.config.branch}"
         try:
             target = self.run("rev-parse", "--verify", f"{reference}^{{commit}}")
@@ -40,10 +41,13 @@ class GitRepository:
                 "branch": branch,
                 "remote": self.config.remote,
                 "old_commit": old,
+                "old_commit_message": old_message,
                 "target_commit": None,
+                "target_commit_message": None,
                 "dirty": dirty,
                 "available": False,
             }
+        target_message = self.run("show", "-s", "--format=%s", target)
         base = self.run("merge-base", old, target)
         fast_forward = base == old
         if require_clean and not fast_forward:
@@ -52,7 +56,9 @@ class GitRepository:
             "branch": branch,
             "remote": self.config.remote,
             "old_commit": old,
+            "old_commit_message": old_message,
             "target_commit": target,
+            "target_commit_message": target_message,
             "dirty": dirty,
             "fast_forward": fast_forward,
             "available": old != target,
