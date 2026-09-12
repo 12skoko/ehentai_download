@@ -34,6 +34,14 @@ def quote(value) -> str:
     )
 
 
+def directory_value(value) -> str:
+    text = str(value)
+    if any(c in text for c in "\n\r\0") or text != text.strip() or text.endswith("\\"):
+        raise ManagementError("Invalid unit directory", "invalid_path")
+    # WorkingDirectory is a literal path, not an ExecStart argument.
+    return text.replace("%", "%%")
+
+
 def render_units(
     config: ManagementConfig, management_path: Path = DEFAULT_CONFIG
 ) -> dict[str, str]:
@@ -43,7 +51,7 @@ def render_units(
         return (
             f"[Unit]\nDescription=EH Archive {description}\nAfter=network.target\n\n"
             f"[Service]\nType={service_type}\nUser=root\n"
-            f"WorkingDirectory={quote(config.repository)}\n"
+            f"WorkingDirectory={directory_value(config.repository)}\n"
             "Environment=PYTHONUNBUFFERED=1\n"
             "StandardOutput=journal\nStandardError=journal\n"
         )
